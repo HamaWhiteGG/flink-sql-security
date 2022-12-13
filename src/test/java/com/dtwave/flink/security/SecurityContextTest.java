@@ -24,14 +24,14 @@ public class SecurityContextTest {
 
     private static final String FIRST_USER = "hamawhite";
     private static final String SECOND_USER = "song.bs";
-    private static final String ORDERS_TABLE = "orders";
+    private static final String TABLE_NAME = "orders";
 
     @BeforeClass
     public static void init() {
         // set row level permissions
         Table<String, String, String> rowLevelPermissions = HashBasedTable.create();
-        rowLevelPermissions.put(FIRST_USER, ORDERS_TABLE, "region = 'beijing'");
-        rowLevelPermissions.put(SECOND_USER, ORDERS_TABLE, "region = 'hangzhou'");
+        rowLevelPermissions.put(FIRST_USER, TABLE_NAME, "region = 'beijing'");
+        rowLevelPermissions.put(SECOND_USER, TABLE_NAME, "region = 'hangzhou'");
         context.setRowLevelPermissions(rowLevelPermissions);
 
         // create mysql cdc table orders
@@ -115,9 +115,9 @@ public class SecurityContextTest {
      * Create mysql cdc table orders
      */
     private static void createTableOfOrders() {
-        context.execute("DROP TABLE IF EXISTS " + ORDERS_TABLE);
+        context.execute("DROP TABLE IF EXISTS " + TABLE_NAME);
 
-        context.execute("CREATE TABLE IF NOT EXISTS " + ORDERS_TABLE + " (" +
+        context.execute("CREATE TABLE IF NOT EXISTS " + TABLE_NAME + " (" +
                 "       order_id            INT PRIMARY KEY NOT ENFORCED ," +
                 "       order_date          TIMESTAMP(0)                 ," +
                 "       customer_name       STRING                       ," +
