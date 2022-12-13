@@ -91,6 +91,7 @@ public class SqlSelect extends SqlCall {
         LOG.info("from: {}, where: {}", from, where);
         if (from instanceof SqlIdentifier) {
             String tableName = ((SqlIdentifier) from).names.get(0);
+            LOG.info("table name: {}", tableName);
             String username = System.getProperty(SECURITY_USERNAME);
 
             SqlBasicCall permissions = SecurityContext.getInstance().queryPermissions(username, tableName);
@@ -274,7 +275,7 @@ public class SqlSelect extends SqlCall {
     }
 
     /**
-     *  Override SqlCall, to introduce a sub-query frame.
+     * Override SqlCall, to introduce a sub-query frame.
      */
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
