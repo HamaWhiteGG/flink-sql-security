@@ -40,9 +40,6 @@ public class SqlSelect extends SqlCall {
 
     private static final Logger LOG = LoggerFactory.getLogger(SqlSelect.class);
 
-    //~ Static fields/initializers ---------------------------------------------
-
-    // constants representing operand positions
     public static final int FROM_OPERAND = 2;
     public static final int WHERE_OPERAND = 3;
     public static final int HAVING_OPERAND = 5;
@@ -58,8 +55,6 @@ public class SqlSelect extends SqlCall {
     SqlNode offset;
     SqlNode fetch;
     SqlNodeList hints;
-
-    //~ Constructors -----------------------------------------------------------
 
     public SqlSelect(SqlParserPos pos,
                      SqlNodeList keywordList,
@@ -91,7 +86,6 @@ public class SqlSelect extends SqlCall {
         this.where = addCondition(from, where);
     }
 
-    //~ Methods ----------------------------------------------------------------
 
     private SqlNode addCondition(SqlNode from, SqlNode where) {
         LOG.info("from: {}, where: {}", from, where);
@@ -279,7 +273,9 @@ public class SqlSelect extends SqlCall {
         validator.validateQuery(this, scope, validator.getUnknownType());
     }
 
-    // Override SqlCall, to introduce a sub-query frame.
+    /**
+     *  Override SqlCall, to introduce a sub-query frame.
+     */
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         if (!writer.inQuery()) {

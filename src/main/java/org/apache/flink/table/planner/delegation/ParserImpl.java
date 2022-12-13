@@ -61,9 +61,11 @@ public class ParserImpl implements Parser {
 
     private final CatalogManager catalogManager;
 
-    // we use supplier pattern here in order to use the most up to
-    // date configuration. Users might change the parser configuration in a TableConfig in between
-    // multiple statements parsing
+    /**
+     *  we use supplier pattern here in order to use the most up to
+     *  date configuration. Users might change the parser configuration in a TableConfig in between
+     *   multiple statements parsing
+     */
     private final Supplier<FlinkPlannerImpl> validatorSupplier;
     private final Supplier<CalciteParser> calciteParserSupplier;
     private final RexFactory rexFactory;
@@ -136,6 +138,7 @@ public class ParserImpl implements Parser {
         }
     }
 
+    @Override
     public String[] getCompletionHints(String statement, int cursor) {
         List<String> candidates =
                 new ArrayList<>(
