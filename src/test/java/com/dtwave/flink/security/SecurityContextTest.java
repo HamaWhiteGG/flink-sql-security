@@ -24,20 +24,23 @@ public class SecurityContextTest {
 
     private static final String FIRST_USER = "hamawhite";
     private static final String SECOND_USER = "song.bs";
-    private static final String TABLE_NAME = "orders";
+    private static final String ORDERS_TABLE = "orders";
 
     @BeforeClass
     public static void init() {
         // set row level permissions
         Table<String, String, String> rowLevelPermissions = HashBasedTable.create();
-        rowLevelPermissions.put(FIRST_USER, TABLE_NAME, "region='beijing'");
-        rowLevelPermissions.put(SECOND_USER, TABLE_NAME, "region='hangzhou'");
+        rowLevelPermissions.put(FIRST_USER, ORDERS_TABLE, "region = 'beijing'");
+        rowLevelPermissions.put(SECOND_USER, ORDERS_TABLE, "region = 'hangzhou'");
         context.setRowLevelPermissions(rowLevelPermissions);
 
         // create mysql cdc table orders
         createTableOfOrders();
     }
 
+    /**
+     * Only select, no where clause
+     */
     @Test
     public void testSelect() {
         String input = "SELECT * FROM orders";
@@ -46,6 +49,23 @@ public class SecurityContextTest {
         testRowLevelFilter(FIRST_USER, input, expected);
     }
 
+
+    /**
+     * Different users configure different permission points
+     */
+    @Test
+    public void testSelectDiffUser() {
+        String input = "SELECT * FROM orders";
+        String firstExpected = "SELECT * FROM orders WHERE region = 'beijing'";
+        String secondExpected = "SELECT * FROM orders WHERE region = 'hangzhou'";
+
+        testRowLevelFilter(FIRST_USER, input, firstExpected);
+        testRowLevelFilter(SECOND_USER, input, secondExpected);
+    }
+
+    /**
+     * Where there is a condition
+     */
     @Test
     public void testSelectWhere() {
         String input = "SELECT * FROM orders WHERE price > 120";
@@ -54,10 +74,25 @@ public class SecurityContextTest {
         testRowLevelFilter(FIRST_USER, input, expected);
     }
 
+    /**
+     * Where there is complex condition,
+     * add a pair of parentheses to the existing multiple where conditions
+     */
     @Test
     public void testSelectComplexWhere() {
         String input = "SELECT * FROM orders WHERE price > 120 OR customer_name = 'John'";
         String expected = "SELECT * FROM orders WHERE (price > 120 OR customer_name = 'John') AND region = 'beijing'";
+
+        testRowLevelFilter(FIRST_USER, input, expected);
+    }
+
+    /**
+     * With group by clause
+     */
+    @Test
+    public void testSelectWhereGroupBy() {
+        String input = "SELECT customer_name, count(*) AS cnt FROM orders WHERE price > 120 GROUP BY customer_name";
+        String expected = "SELECT customer_name, COUNT(*) AS cnt FROM orders WHERE price > 120 AND region = 'beijing' GROUP BY customer_name";
 
         testRowLevelFilter(FIRST_USER, input, expected);
     }
@@ -80,9 +115,9 @@ public class SecurityContextTest {
      * Create mysql cdc table orders
      */
     private static void createTableOfOrders() {
-        context.execute("DROP TABLE IF EXISTS " + TABLE_NAME);
+        context.execute("DROP TABLE IF EXISTS " + ORDERS_TABLE);
 
-        context.execute("CREATE TABLE IF NOT EXISTS " + TABLE_NAME + " (" +
+        context.execute("CREATE TABLE IF NOT EXISTS " + ORDERS_TABLE + " (" +
                 "       order_id            INT PRIMARY KEY NOT ENFORCED ," +
                 "       order_date          TIMESTAMP(0)                 ," +
                 "       customer_name       STRING                       ," +
