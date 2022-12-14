@@ -26,6 +26,7 @@ public class SecurityContextTest {
     private static final String SECOND_USER = "song.bs";
     private static final String ORDERS_TABLE = "orders";
     private static final String PRODUCTS_TABLE = "products";
+    private static final String SHIPMENTS_TABLE = "shipments";
 
     @BeforeClass
     public static void init() {
@@ -40,6 +41,9 @@ public class SecurityContextTest {
 
         // create mysql cdc table products
         createTableOfProducts();
+
+        // create mysql cdc table shipments
+        createTableOfShipments();
     }
 
     /**
@@ -163,8 +167,29 @@ public class SecurityContextTest {
     }
 
 
+
+    /**
+     * The order table order, the product table products, and the logistics information table shipments
+     * are associated with the three tables
+     */
+    @Test
+    public void testThreeJoin() {
+        // add permission
+        context.getRowLevelPermissions().put(FIRST_USER, PRODUCTS_TABLE, "name = 'hammer'");
+        context.getRowLevelPermissions().put(FIRST_USER, SHIPMENTS_TABLE, "is_arrived = false");
+
+        String inputSql = "SELECT o.*, p.name, p.description, s.shipment_id, s.origin, s.destination, s.is_arrived FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id LEFT JOIN shipments AS s ON o.order_id = s.order_id";
+        String expected = "SELECT o.*, p.name, p.description, s.shipment_id, s.origin, s.destination, s.is_arrived FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id LEFT JOIN shipments AS s ON o.order_id = s.order_id WHERE o.region = 'beijing' AND p.name = 'hammer' AND s.is_arrived = FALSE";
+
+        testRowLevelFilter(FIRST_USER, inputSql, expected);
+
+        // delete permission
+        context.getRowLevelPermissions().remove(FIRST_USER, PRODUCTS_TABLE);
+        context.getRowLevelPermissions().remove(FIRST_USER, SHIPMENTS_TABLE);
+    }
+
+
     private void testRowLevelFilter(String username, String inputSql, String expectedSql) {
-        LOG.info("----------------------------------------");
         String resultSql = context.addRowLevelFilter(username, inputSql);
         // replace \n with spaces and remove single apostrophes
         resultSql = resultSql.replace("\n", " ").replace("`", "");
@@ -221,6 +246,31 @@ public class SecurityContextTest {
                 "       'server-time-zone' = 'Asia/Shanghai' ," +
                 "       'database-name' = 'demo'             ," +
                 "       'table-name'    = '" + ORDERS_TABLE + "' " +
+                ")"
+        );
+    }
+
+    /**
+     * Create mysql cdc table shipments
+     */
+    private static void createTableOfShipments() {
+        context.execute("DROP TABLE IF EXISTS " + SHIPMENTS_TABLE);
+
+        context.execute("CREATE TABLE IF NOT EXISTS " + SHIPMENTS_TABLE + " (" +
+                "       shipment_id          INT PRIMARY KEY NOT ENFORCED ," +
+                "       order_id             INT                          ," +
+                "       origin               STRING                       ," +
+                "       destination          STRING                       ," +
+                "       is_arrived           BOOLEAN                       " +
+                ") WITH ( " +
+                "       'connector' = 'mysql-cdc'            ," +
+                "       'hostname'  = '192.168.90.150'       ," +
+                "       'port'      = '3306'                 ," +
+                "       'username'  = 'root'                 ," +
+                "       'password'  = 'root@123456'          ," +
+                "       'server-time-zone' = 'Asia/Shanghai' ," +
+                "       'database-name' = 'demo'             ," +
+                "       'table-name'    = '" + SHIPMENTS_TABLE + "' " +
                 ")"
         );
     }

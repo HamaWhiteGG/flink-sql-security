@@ -85,27 +85,28 @@ public class SqlSelect extends SqlCall {
         this.hints = hints;
 
         // add row level filter condition for where clause
-        this.where = addCondition(from, where);
+        this.where = addCondition(from, where, false);
     }
 
 
-    private SqlNode addCondition(SqlNode from, SqlNode where) {
+    /**
+     * Support recursive processing, such as join for three tables
+     */
+    private SqlNode addCondition(SqlNode from, SqlNode where, boolean fromJoin) {
         if (from instanceof SqlIdentifier) {
             String tableName = from.toString();
-            return addPermission(where, tableName, null);
+            // the table name is used as an alias
+            String tableAlias = fromJoin ? tableName : null;
+            return addPermission(where, tableName, tableAlias);
         } else if (from instanceof SqlJoin) {
+            SqlJoin sqlJoin = (SqlJoin) from;
             // process left sqlNode
-            where = processJoinSqlNode(((SqlJoin) from).getLeft(), where);
+            where = addCondition(sqlJoin.getLeft(), where, true);
             // process right sqlNode
-            return processJoinSqlNode(((SqlJoin) from).getRight(), where);
-        }
-        return where;
-    }
-
-    private SqlNode processJoinSqlNode(SqlNode sqlNode, SqlNode where) {
-        if (sqlNode instanceof SqlBasicCall) {
+            return addCondition(sqlJoin.getRight(), where, true);
+        } else if (from instanceof SqlBasicCall) {
             // Table has an alias or comes from a subquery
-            SqlNode[] tableNodes = ((SqlBasicCall) sqlNode).getOperands();
+            SqlNode[] tableNodes = ((SqlBasicCall) from).getOperands();
             /**
              * If there is a subquery in the Join, row-level filtering has been appended to the subquery.
              * What is returned here is the SqlSelect type, just return the original where directly
@@ -116,27 +117,33 @@ public class SqlSelect extends SqlCall {
             String tableName = tableNodes[0].toString();
             String tableAlias = tableNodes[1].toString();
             return addPermission(where, tableName, tableAlias);
-        } else if (sqlNode instanceof SqlIdentifier) {
-            // simple table
-            String tableName = sqlNode.toString();
-            // the table name is used as an alias
-            return addPermission(where, tableName, tableName);
         }
         return where;
     }
 
+    /**
+     * Add row-level filtering based on user-configured permission points
+     */
     private SqlNode addPermission(SqlNode where, String tableName, String tableAlias) {
         String username = System.getProperty(SECURITY_USERNAME);
         SqlBasicCall permissions = SecurityContext.getInstance().queryPermissions(username, tableName);
 
         // add an alias
-        if (permissions!=null && tableAlias != null) {
+        if (permissions != null && tableAlias != null) {
             ImmutableList<String> namesList = ImmutableList.of(tableAlias, permissions.getOperands()[0].toString());
-            permissions.getOperands()[0] = new SqlIdentifier(namesList, null, new SqlParserPos(0, 0), null);
+            permissions.getOperands()[0] = new SqlIdentifier(namesList
+                    , null
+                    , new SqlParserPos(0, 0)
+                    , null
+            );
         }
+
         return buildWhereClause(where, permissions);
     }
 
+    /**
+     * Rebuild the where clause
+     */
     private SqlNode buildWhereClause(SqlNode where, SqlBasicCall permissions) {
         if (permissions != null) {
             if (where == null) {
