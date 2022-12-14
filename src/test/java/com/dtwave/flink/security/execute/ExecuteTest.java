@@ -13,13 +13,11 @@ import org.junit.Test;
  */
 public class ExecuteTest extends AbstractBasicTest {
 
+
     @BeforeClass
     public static void init() {
         // create mysql cdc table orders
         createTableOfOrders();
-
-        // create print sink table print_sink
-        createTableOfPrintSink();
     }
 
 

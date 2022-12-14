@@ -222,4 +222,5 @@ public class ParserTest extends AbstractBasicTest {
         LOG.info("Result SQL: {}\n", resultSql);
         assertEquals(expectedSql, resultSql);
     }
+
 }
