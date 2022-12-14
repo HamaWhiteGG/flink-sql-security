@@ -1,7 +1,6 @@
-package com.dtwave.flink.security;
+package com.dtwave.flink.security.parser;
 
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.Table;
+import com.dtwave.flink.security.basic.AbstractBasicTest;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -11,31 +10,18 @@ import org.slf4j.LoggerFactory;
 import static org.junit.Assert.assertEquals;
 
 /**
- * @description: SecurityContextTest
+ * @description: Rewrite SQL based on row-level filter conditions
  * @author: baisong
  * @version: 1.0.0
  * @date: 2022/12/10 12:24 PM
  */
-public class SecurityContextTest {
+public class ParserTest extends AbstractBasicTest {
 
-    private static final Logger LOG = LoggerFactory.getLogger(SecurityContextTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ParserTest.class);
 
-    private static final SecurityContext context = SecurityContext.getInstance();
-
-    private static final String FIRST_USER = "hamawhite";
-    private static final String SECOND_USER = "song.bs";
-    private static final String ORDERS_TABLE = "orders";
-    private static final String PRODUCTS_TABLE = "products";
-    private static final String SHIPMENTS_TABLE = "shipments";
 
     @BeforeClass
     public static void init() {
-        // set row level permissions
-        Table<String, String, String> rowLevelPermissions = HashBasedTable.create();
-        rowLevelPermissions.put(FIRST_USER, ORDERS_TABLE, "region = 'beijing'");
-        rowLevelPermissions.put(SECOND_USER, ORDERS_TABLE, "region = 'hangzhou'");
-        context.setRowLevelPermissions(rowLevelPermissions);
-
         // create mysql cdc table orders
         createTableOfOrders();
 
@@ -44,7 +30,11 @@ public class SecurityContextTest {
 
         // create mysql cdc table shipments
         createTableOfShipments();
+
+        // create print sink table print_sink
+        createTableOfPrintSink();
     }
+
 
     /**
      * Only select, no where clause
@@ -71,6 +61,7 @@ public class SecurityContextTest {
         testRowLevelFilter(SECOND_USER, inputSql, secondExpected);
     }
 
+
     /**
      * Where there is a condition
      */
@@ -81,6 +72,7 @@ public class SecurityContextTest {
 
         testRowLevelFilter(FIRST_USER, inputSql, expected);
     }
+
 
     /**
      * Where there is complex condition, add a pair of parentheses to the existing multiple where
@@ -93,6 +85,7 @@ public class SecurityContextTest {
 
         testRowLevelFilter(FIRST_USER, inputSql, expected);
     }
+
 
     /**
      * With group by clause
@@ -116,6 +109,7 @@ public class SecurityContextTest {
 
         testRowLevelFilter(FIRST_USER, inputSql, expected);
     }
+
 
     /**
      * The two tables of products and orders are left joined, but without alias
@@ -151,6 +145,7 @@ public class SecurityContextTest {
         testRowLevelFilter(FIRST_USER, inputSql, expected);
     }
 
+
     /**
      * The two tables of orders and products are joined, and both have row-level filter conditions
      */
@@ -167,10 +162,9 @@ public class SecurityContextTest {
     }
 
 
-
     /**
-     * The order table order, the product table products, and the logistics information table shipments
-     * are associated with the three tables
+     * The order table order, the product table products, and the logistics information table
+     * shipments are associated with the three tables
      */
     @Test
     public void testThreeJoin() {
@@ -189,89 +183,43 @@ public class SecurityContextTest {
     }
 
 
+    /**
+     * insert-select.
+     *
+     * insert into print table from mysql cdc stream table.
+     */
+    @Test
+    public void testInsertSelect() {
+        String inputSql = "INSERT INTO print_sink SELECT * FROM orders";
+        // the following () is what Calcite would automatically add
+        String expected = "INSERT INTO print_sink (SELECT * FROM orders WHERE region = 'beijing')";
+
+        testRowLevelFilter(FIRST_USER, inputSql, expected);
+    }
+
+
+    /**
+     * insert-select-select.
+     *
+     * insert into print table from mysql cdc stream table.
+     */
+    @Test
+    public void testInsertSelectSelect() {
+        String inputSql = "INSERT INTO print_sink SELECT * FROM (SELECT * FROM orders)";
+        // the following () is what Calcite would automatically add
+        String expected = "INSERT INTO print_sink (SELECT * FROM (SELECT * FROM orders WHERE region = 'beijing'))";
+
+        testRowLevelFilter(FIRST_USER, inputSql, expected);
+    }
+
+
     private void testRowLevelFilter(String username, String inputSql, String expectedSql) {
         String resultSql = context.addRowLevelFilter(username, inputSql);
         // replace \n with spaces and remove single apostrophes
         resultSql = resultSql.replace("\n", " ").replace("`", "");
 
         LOG.info("Input  SQL: {}", inputSql);
-        LOG.info("Result SQL: {}", resultSql);
+        LOG.info("Result SQL: {}\n", resultSql);
         assertEquals(expectedSql, resultSql);
-    }
-
-    /**
-     * Create mysql cdc table products
-     */
-    private static void createTableOfProducts() {
-        context.execute("DROP TABLE IF EXISTS " + PRODUCTS_TABLE);
-
-        context.execute("CREATE TABLE IF NOT EXISTS " + PRODUCTS_TABLE + " (" +
-                "       id                  INT PRIMARY KEY NOT ENFORCED ," +
-                "       name                STRING                       ," +
-                "       description         STRING                        " +
-                ") WITH ( " +
-                "       'connector' = 'mysql-cdc'            ," +
-                "       'hostname'  = '192.168.90.150'       ," +
-                "       'port'      = '3306'                 ," +
-                "       'username'  = 'root'                 ," +
-                "       'password'  = 'root@123456'          ," +
-                "       'server-time-zone' = 'Asia/Shanghai' ," +
-                "       'database-name' = 'demo'             ," +
-                "       'table-name'    = '" + PRODUCTS_TABLE + "' " +
-                ")"
-        );
-    }
-
-
-    /**
-     * Create mysql cdc table orders
-     */
-    private static void createTableOfOrders() {
-        context.execute("DROP TABLE IF EXISTS " + ORDERS_TABLE);
-
-        context.execute("CREATE TABLE IF NOT EXISTS " + ORDERS_TABLE + " (" +
-                "       order_id            INT PRIMARY KEY NOT ENFORCED ," +
-                "       order_date          TIMESTAMP(0)                 ," +
-                "       customer_name       STRING                       ," +
-                "       product_id          INT                          ," +
-                "       price               DECIMAL(10, 5)               ," +
-                "       order_status        BOOLEAN                      ," +
-                "       region              STRING                        " +
-                ") WITH ( " +
-                "       'connector' = 'mysql-cdc'            ," +
-                "       'hostname'  = '192.168.90.150'       ," +
-                "       'port'      = '3306'                 ," +
-                "       'username'  = 'root'                 ," +
-                "       'password'  = 'root@123456'          ," +
-                "       'server-time-zone' = 'Asia/Shanghai' ," +
-                "       'database-name' = 'demo'             ," +
-                "       'table-name'    = '" + ORDERS_TABLE + "' " +
-                ")"
-        );
-    }
-
-    /**
-     * Create mysql cdc table shipments
-     */
-    private static void createTableOfShipments() {
-        context.execute("DROP TABLE IF EXISTS " + SHIPMENTS_TABLE);
-
-        context.execute("CREATE TABLE IF NOT EXISTS " + SHIPMENTS_TABLE + " (" +
-                "       shipment_id          INT PRIMARY KEY NOT ENFORCED ," +
-                "       order_id             INT                          ," +
-                "       origin               STRING                       ," +
-                "       destination          STRING                       ," +
-                "       is_arrived           BOOLEAN                       " +
-                ") WITH ( " +
-                "       'connector' = 'mysql-cdc'            ," +
-                "       'hostname'  = '192.168.90.150'       ," +
-                "       'port'      = '3306'                 ," +
-                "       'username'  = 'root'                 ," +
-                "       'password'  = 'root@123456'          ," +
-                "       'server-time-zone' = 'Asia/Shanghai' ," +
-                "       'database-name' = 'demo'             ," +
-                "       'table-name'    = '" + SHIPMENTS_TABLE + "' " +
-                ")"
-        );
     }
 }

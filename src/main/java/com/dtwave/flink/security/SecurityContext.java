@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Random;
 
-import static com.dtwave.flink.security.constant.Constant.SECURITY_USERNAME;
+import static com.dtwave.flink.security.Constant.SECURITY_USERNAME;
 
 /**
  * @description: SecurityContext
@@ -99,7 +99,6 @@ public class SecurityContext {
      * Execute the single sql
      */
     public TableResult execute(String singleSql) {
-        LOG.info("execute sql: {}", singleSql.replaceAll("\\s+"," "));
         return tableEnv.executeSql(singleSql);
     }
 

@@ -1,4 +1,4 @@
-package com.dtwave.flink.security.constant;
+package com.dtwave.flink.security;
 
 /**
  * @description: Constant

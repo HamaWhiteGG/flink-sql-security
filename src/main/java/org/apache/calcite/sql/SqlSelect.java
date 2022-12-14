@@ -32,15 +32,19 @@ import java.util.Objects;
 
 import javax.annotation.Nonnull;
 
-import static com.dtwave.flink.security.constant.Constant.SECURITY_USERNAME;
+import static com.dtwave.flink.security.Constant.SECURITY_USERNAME;
 
 /**
+ *
  * A <code>SqlSelect</code> is a node of a parse tree which represents a select statement. It
  * warrants its own node type just because we have a lot of methods to put somewhere.
+ *
+ * @description: Modify the value method of where to addCondition() to support row-level permission filtering
+ * @author: baisong
+ * @version: 1.0.0
+ * @date: 2022/12/14 12:24 PM
  */
 public class SqlSelect extends SqlCall {
-
-    private static final Logger LOG = LoggerFactory.getLogger(SqlSelect.class);
 
     public static final int FROM_OPERAND = 2;
     public static final int WHERE_OPERAND = 3;
@@ -95,7 +99,7 @@ public class SqlSelect extends SqlCall {
     private SqlNode addCondition(SqlNode from, SqlNode where, boolean fromJoin) {
         if (from instanceof SqlIdentifier) {
             String tableName = from.toString();
-            // the table name is used as an alias
+            // the table name is used as an alias for join
             String tableAlias = fromJoin ? tableName : null;
             return addPermission(where, tableName, tableAlias);
         } else if (from instanceof SqlJoin) {
