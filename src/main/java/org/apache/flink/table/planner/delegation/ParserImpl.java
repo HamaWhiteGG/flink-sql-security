@@ -56,6 +56,11 @@ import javax.annotation.Nullable;
 
 /**
  * Implementation of {@link Parser} that uses Calcite.
+ *
+ * @description: Added two methods: parseExpression(String sqlExpression) and parseSql(String statement)
+ * @author: baisong
+ * @version: 1.0.0
+ * @date: 2022/12/14 12:24 PM
  */
 public class ParserImpl implements Parser {
 
