@@ -3,14 +3,19 @@ package com.dtwave.flink.security.execute;
 import com.dtwave.flink.security.basic.AbstractBasicTest;
 
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /**
+ * Note: When running manually, first temporarily comment out the @Ignore annotation on the class,
+ * and then optimize it in the next step
+ *
  * @description: Execute SQL based on row-level filter conditions
  * @author: baisong
  * @version: 1.0.0
  * @date: 2022/12/14 6:00 PM
  */
+@Ignore
 public class ExecuteTest extends AbstractBasicTest {
 
 
