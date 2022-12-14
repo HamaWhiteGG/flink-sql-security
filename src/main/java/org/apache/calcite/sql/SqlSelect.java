@@ -24,8 +24,6 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 import org.apache.calcite.util.ImmutableNullableList;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Objects;
@@ -35,11 +33,11 @@ import javax.annotation.Nonnull;
 import static com.dtwave.flink.security.Constant.SECURITY_USERNAME;
 
 /**
- *
  * A <code>SqlSelect</code> is a node of a parse tree which represents a select statement. It
  * warrants its own node type just because we have a lot of methods to put somewhere.
  *
- * @description: Modify the value method of where to addCondition() to support row-level permission filtering
+ * @description: Modify the value method of where to addCondition() to support row-level permission
+ * filtering
  * @author: baisong
  * @version: 1.0.0
  * @date: 2022/12/14 12:24 PM
