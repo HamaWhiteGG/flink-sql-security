@@ -31,9 +31,9 @@ public class SecurityContext {
     private static volatile SecurityContext singleton;
 
     private final TableEnvironmentImpl tableEnv;
+    private final Random rand = new Random();
 
     private Table<String, String, String> rowLevelPermissions;
-    private final Random rand = new Random();
 
     public static SecurityContext getInstance() {
         if (singleton == null) {
@@ -111,6 +111,10 @@ public class SecurityContext {
         String newSql = addRowLevelFilter(username, singleSql);
         LOG.info("new sql: {}", newSql);
         return tableEnv.executeSql(newSql);
+    }
+
+    public Table<String, String, String> getRowLevelPermissions() {
+        return rowLevelPermissions;
     }
 
     public void setRowLevelPermissions(Table<String, String, String> rowLevelPermissions) {

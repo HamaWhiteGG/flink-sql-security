@@ -24,18 +24,22 @@ public class SecurityContextTest {
 
     private static final String FIRST_USER = "hamawhite";
     private static final String SECOND_USER = "song.bs";
-    private static final String TABLE_NAME = "orders";
+    private static final String ORDERS_TABLE = "orders";
+    private static final String PRODUCTS_TABLE = "products";
 
     @BeforeClass
     public static void init() {
         // set row level permissions
         Table<String, String, String> rowLevelPermissions = HashBasedTable.create();
-        rowLevelPermissions.put(FIRST_USER, TABLE_NAME, "region = 'beijing'");
-        rowLevelPermissions.put(SECOND_USER, TABLE_NAME, "region = 'hangzhou'");
+        rowLevelPermissions.put(FIRST_USER, ORDERS_TABLE, "region = 'beijing'");
+        rowLevelPermissions.put(SECOND_USER, ORDERS_TABLE, "region = 'hangzhou'");
         context.setRowLevelPermissions(rowLevelPermissions);
 
         // create mysql cdc table orders
         createTableOfOrders();
+
+        // create mysql cdc table products
+        createTableOfProducts();
     }
 
     /**
@@ -43,10 +47,10 @@ public class SecurityContextTest {
      */
     @Test
     public void testSelect() {
-        String input = "SELECT * FROM orders";
+        String inputSql = "SELECT * FROM orders";
         String expected = "SELECT * FROM orders WHERE region = 'beijing'";
 
-        testRowLevelFilter(FIRST_USER, input, expected);
+        testRowLevelFilter(FIRST_USER, inputSql, expected);
     }
 
 
@@ -55,12 +59,12 @@ public class SecurityContextTest {
      */
     @Test
     public void testSelectDiffUser() {
-        String input = "SELECT * FROM orders";
+        String inputSql = "SELECT * FROM orders";
         String firstExpected = "SELECT * FROM orders WHERE region = 'beijing'";
         String secondExpected = "SELECT * FROM orders WHERE region = 'hangzhou'";
 
-        testRowLevelFilter(FIRST_USER, input, firstExpected);
-        testRowLevelFilter(SECOND_USER, input, secondExpected);
+        testRowLevelFilter(FIRST_USER, inputSql, firstExpected);
+        testRowLevelFilter(SECOND_USER, inputSql, secondExpected);
     }
 
     /**
@@ -68,22 +72,22 @@ public class SecurityContextTest {
      */
     @Test
     public void testSelectWhere() {
-        String input = "SELECT * FROM orders WHERE price > 120";
-        String expected = "SELECT * FROM orders WHERE price > 120 AND region = 'beijing'";
+        String inputSql = "SELECT * FROM orders WHERE price > 45.0";
+        String expected = "SELECT * FROM orders WHERE price > 45.0 AND region = 'beijing'";
 
-        testRowLevelFilter(FIRST_USER, input, expected);
+        testRowLevelFilter(FIRST_USER, inputSql, expected);
     }
 
     /**
-     * Where there is complex condition,
-     * add a pair of parentheses to the existing multiple where conditions
+     * Where there is complex condition, add a pair of parentheses to the existing multiple where
+     * conditions
      */
     @Test
     public void testSelectComplexWhere() {
-        String input = "SELECT * FROM orders WHERE price > 120 OR customer_name = 'John'";
-        String expected = "SELECT * FROM orders WHERE (price > 120 OR customer_name = 'John') AND region = 'beijing'";
+        String inputSql = "SELECT * FROM orders WHERE price > 45.0 OR customer_name = 'John'";
+        String expected = "SELECT * FROM orders WHERE (price > 45.0 OR customer_name = 'John') AND region = 'beijing'";
 
-        testRowLevelFilter(FIRST_USER, input, expected);
+        testRowLevelFilter(FIRST_USER, inputSql, expected);
     }
 
     /**
@@ -91,10 +95,71 @@ public class SecurityContextTest {
      */
     @Test
     public void testSelectWhereGroupBy() {
-        String input = "SELECT customer_name, count(*) AS cnt FROM orders WHERE price > 120 GROUP BY customer_name";
-        String expected = "SELECT customer_name, COUNT(*) AS cnt FROM orders WHERE price > 120 AND region = 'beijing' GROUP BY customer_name";
+        String inputSql = "SELECT customer_name, count(*) AS cnt FROM orders WHERE price > 45.0 GROUP BY customer_name";
+        String expected = "SELECT customer_name, COUNT(*) AS cnt FROM orders WHERE price > 45.0 AND region = 'beijing' GROUP BY customer_name";
 
-        testRowLevelFilter(FIRST_USER, input, expected);
+        testRowLevelFilter(FIRST_USER, inputSql, expected);
+    }
+
+
+    /**
+     * The two tables of products and orders are left joined
+     */
+    @Test
+    public void testJoin() {
+        String inputSql = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id";
+        String expected = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.region = 'beijing'";
+
+        testRowLevelFilter(FIRST_USER, inputSql, expected);
+    }
+
+    /**
+     * The two tables of products and orders are left joined, but without alias
+     */
+    @Test
+    public void testJoinWithoutAlias() {
+        String inputSql = "SELECT o.*, p.name, p.description FROM orders LEFT JOIN products ON orders.product_id = products.id";
+        String expected = "SELECT o.*, p.name, p.description FROM orders LEFT JOIN products ON orders.product_id = products.id WHERE orders.region = 'beijing'";
+
+        testRowLevelFilter(FIRST_USER, inputSql, expected);
+    }
+
+
+    /**
+     * The two tables of products and orders are left joined, and there is a condition
+     */
+    @Test
+    public void testJoinWhere() {
+        String inputSql = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.price > 45.0 OR o.customer_name = 'John'";
+        String expected = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE (o.price > 45.0 OR o.customer_name = 'John') AND o.region = 'beijing'";
+
+        testRowLevelFilter(FIRST_USER, inputSql, expected);
+    }
+
+
+    /**
+     * The products and orders two tables are left joined, and the left table comes from a subquery
+     */
+    @Test
+    public void testJoinSubQueryWhere() {
+        String inputSql = "SELECT o.*, p.name, p.description FROM (SELECT * FROM orders WHERE order_status = false) AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.price > 45.0 OR o.customer_name = 'John'";
+        String expected = "SELECT o.*, p.name, p.description FROM (SELECT * FROM orders WHERE order_status = FALSE AND region = 'beijing') AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.price > 45.0 OR o.customer_name = 'John'";
+        testRowLevelFilter(FIRST_USER, inputSql, expected);
+    }
+
+    /**
+     * The two tables of orders and products are joined, and both have row-level filter conditions
+     */
+    @Test
+    public void testJoinWithBothPermissions() {
+        // add permission
+        context.getRowLevelPermissions().put(FIRST_USER, PRODUCTS_TABLE, "name = 'hammer'");
+        String inputSql = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id";
+        String expected = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.region = 'beijing' AND p.name = 'hammer'";
+        testRowLevelFilter(FIRST_USER, inputSql, expected);
+
+        // delete permission
+        context.getRowLevelPermissions().remove(FIRST_USER, PRODUCTS_TABLE);
     }
 
 
@@ -104,10 +169,32 @@ public class SecurityContextTest {
         // replace \n with spaces and remove single apostrophes
         resultSql = resultSql.replace("\n", " ").replace("`", "");
 
-        LOG.info("Input SQL: {}", inputSql);
+        LOG.info("Input  SQL: {}", inputSql);
         LOG.info("Result SQL: {}", resultSql);
         assertEquals(expectedSql, resultSql);
+    }
 
+    /**
+     * Create mysql cdc table products
+     */
+    private static void createTableOfProducts() {
+        context.execute("DROP TABLE IF EXISTS " + PRODUCTS_TABLE);
+
+        context.execute("CREATE TABLE IF NOT EXISTS " + PRODUCTS_TABLE + " (" +
+                "       id                  INT PRIMARY KEY NOT ENFORCED ," +
+                "       name                STRING                       ," +
+                "       description         STRING                        " +
+                ") WITH ( " +
+                "       'connector' = 'mysql-cdc'            ," +
+                "       'hostname'  = '192.168.90.150'       ," +
+                "       'port'      = '3306'                 ," +
+                "       'username'  = 'root'                 ," +
+                "       'password'  = 'root@123456'          ," +
+                "       'server-time-zone' = 'Asia/Shanghai' ," +
+                "       'database-name' = 'demo'             ," +
+                "       'table-name'    = '" + PRODUCTS_TABLE + "' " +
+                ")"
+        );
     }
 
 
@@ -115,14 +202,15 @@ public class SecurityContextTest {
      * Create mysql cdc table orders
      */
     private static void createTableOfOrders() {
-        context.execute("DROP TABLE IF EXISTS " + TABLE_NAME);
+        context.execute("DROP TABLE IF EXISTS " + ORDERS_TABLE);
 
-        context.execute("CREATE TABLE IF NOT EXISTS " + TABLE_NAME + " (" +
+        context.execute("CREATE TABLE IF NOT EXISTS " + ORDERS_TABLE + " (" +
                 "       order_id            INT PRIMARY KEY NOT ENFORCED ," +
                 "       order_date          TIMESTAMP(0)                 ," +
                 "       customer_name       STRING                       ," +
                 "       product_id          INT                          ," +
                 "       price               DECIMAL(10, 5)               ," +
+                "       order_status        BOOLEAN                      ," +
                 "       region              STRING                        " +
                 ") WITH ( " +
                 "       'connector' = 'mysql-cdc'            ," +
@@ -132,7 +220,7 @@ public class SecurityContextTest {
                 "       'password'  = 'root@123456'          ," +
                 "       'server-time-zone' = 'Asia/Shanghai' ," +
                 "       'database-name' = 'demo'             ," +
-                "       'table-name'    = 'orders' " +
+                "       'table-name'    = '" + ORDERS_TABLE + "' " +
                 ")"
         );
     }
