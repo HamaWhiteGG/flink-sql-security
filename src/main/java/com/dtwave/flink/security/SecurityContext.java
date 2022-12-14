@@ -99,7 +99,7 @@ public class SecurityContext {
      * Execute the single sql
      */
     public TableResult execute(String singleSql) {
-        LOG.info("execute sql: {}", singleSql);
+        LOG.info("execute sql: {}", singleSql.replaceAll("\\s+"," "));
         return tableEnv.executeSql(singleSql);
     }
 
