@@ -16,6 +16,8 @@
  */
 package org.apache.calcite.sql;
 
+import com.google.common.collect.ImmutableList;
+
 import com.dtwave.flink.security.SecurityContext;
 
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -82,43 +84,82 @@ public class SqlSelect extends SqlCall {
         this.fetch = fetch;
         this.hints = hints;
 
-        // add condition for where clause
+        // add row level filter condition for where clause
         this.where = addCondition(from, where);
     }
 
 
     private SqlNode addCondition(SqlNode from, SqlNode where) {
-        LOG.info("from: {}, where: {}", from, where);
         if (from instanceof SqlIdentifier) {
-            String tableName = ((SqlIdentifier) from).names.get(0);
-            LOG.info("table name: {}", tableName);
-            String username = System.getProperty(SECURITY_USERNAME);
-
-            SqlBasicCall permissions = SecurityContext.getInstance().queryPermissions(username, tableName);
-            if (permissions != null) {
-                if (where == null) {
-                    return permissions;
-                }
-                SqlBinaryOperator sqlBinaryOperator = new SqlBinaryOperator(SqlKind.AND.name()
-                        , SqlKind.AND
-                        , 0
-                        , true
-                        , null
-                        , null
-                        , null
-                );
-                SqlNode[] operands = new SqlNode[2];
-                operands[0] = where;
-                operands[1] = permissions;
-                SqlParserPos sqlParserPos = new SqlParserPos(0, 0);
-                SqlBasicCall newWhere = new SqlBasicCall(sqlBinaryOperator, operands, sqlParserPos);
-                LOG.info("from: {}, newWhere: {}", from, newWhere);
-                return newWhere;
-            }
+            String tableName = from.toString();
+            return addPermission(where, tableName, null);
+        } else if (from instanceof SqlJoin) {
+            // process left sqlNode
+            where = processJoinSqlNode(((SqlJoin) from).getLeft(), where);
+            // process right sqlNode
+            return processJoinSqlNode(((SqlJoin) from).getRight(), where);
         }
         return where;
     }
 
+    private SqlNode processJoinSqlNode(SqlNode sqlNode, SqlNode where) {
+        if (sqlNode instanceof SqlBasicCall) {
+            // Table has an alias or comes from a subquery
+            SqlNode[] tableNodes = ((SqlBasicCall) sqlNode).getOperands();
+            /**
+             * If there is a subquery in the Join, row-level filtering has been appended to the subquery.
+             * What is returned here is the SqlSelect type, just return the original where directly
+             */
+            if (!(tableNodes[0] instanceof SqlIdentifier)) {
+                return where;
+            }
+            String tableName = tableNodes[0].toString();
+            String tableAlias = tableNodes[1].toString();
+            return addPermission(where, tableName, tableAlias);
+        } else if (sqlNode instanceof SqlIdentifier) {
+            // simple table
+            String tableName = sqlNode.toString();
+            // the table name is used as an alias
+            return addPermission(where, tableName, tableName);
+        }
+        return where;
+    }
+
+    private SqlNode addPermission(SqlNode where, String tableName, String tableAlias) {
+        String username = System.getProperty(SECURITY_USERNAME);
+        SqlBasicCall permissions = SecurityContext.getInstance().queryPermissions(username, tableName);
+
+        // add an alias
+        if (permissions!=null && tableAlias != null) {
+            ImmutableList<String> namesList = ImmutableList.of(tableAlias, permissions.getOperands()[0].toString());
+            permissions.getOperands()[0] = new SqlIdentifier(namesList, null, new SqlParserPos(0, 0), null);
+        }
+        return buildWhereClause(where, permissions);
+    }
+
+    private SqlNode buildWhereClause(SqlNode where, SqlBasicCall permissions) {
+        if (permissions != null) {
+            if (where == null) {
+                return permissions;
+            }
+            SqlBinaryOperator sqlBinaryOperator = new SqlBinaryOperator(SqlKind.AND.name()
+                    , SqlKind.AND
+                    , 0
+                    , true
+                    , null
+                    , null
+                    , null
+            );
+            SqlNode[] operands = new SqlNode[2];
+            operands[0] = where;
+            operands[1] = permissions;
+            SqlParserPos sqlParserPos = new SqlParserPos(0, 0);
+            return new SqlBasicCall(sqlBinaryOperator, operands, sqlParserPos);
+        }
+        return where;
+    }
+
+    @Override
     public SqlOperator getOperator() {
         return SqlSelectOperator.INSTANCE;
     }
