@@ -75,7 +75,11 @@ SELECT * FROM orders;
 可以参考作者文章[[FlinkSQL字段血缘解决方案及源码]](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)，下面根据Flink1.16修正和简化后的执行流程如下图所示。
 ![FlinkSQL simple-execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20simple-execution%20flowchart.png)
 
-#### 3.1.2 解决思路
+#### 3.1.2 Calcite对象继承关系
+下节要用到Calcite中的SqlNode、SqlBacicCall、SqlSelect、SqlCall、SqlIdentifier、SqlJoin等类，此处展示下它们间的关系。
+![Calcite SqlNode diagrams.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/Calcite%20SqlNode%20diagrams.png)
+
+#### 3.1.3 解决思路
 
 在Parser阶段，如果执行的SQL包含对表的查询操作，则一定会构建Calcite SqlSelect对象。因此限制表的行级权限，只要在Calcite SqlSelect对象构建Where条件进行拦截即可，而不需要根据用户执行的各种SQL来解析查找带行级权限条件约束的表。
 
@@ -84,7 +88,7 @@ SELECT * FROM orders;
 ![FlinkSQL row-level permissions solution.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20row-level%20permissions%20solution.png)
 
 以上整个过程对执行SQL都是透明和无感知的，用户还是调用Flink自带的TableEnvironment.executeSql(String statement)方法即可。
-
+> 注: 要通过技术手段把执行用户传递到Calcite SqlSelect中。
 
 ### 3.2 重写SQL
 #### 3.2.1 主要流程
