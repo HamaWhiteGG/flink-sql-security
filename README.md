@@ -57,11 +57,9 @@ SELECT * FROM orders;
 ### 1.3 组件版本
 | 组件名称 | 版本 | 备注 |
 | --- | --- | --- |
-| Flink | 1.16.0 |  
-| Mysql | 8.0.29 |  |
-| Flink-connector-mysql-cdc | 2.3.0 |  |
 | JDK | 1.8 | |
-| Scala | 2.12 |  |
+| Flink | 1.16.0 |  
+| Flink-connector-mysql-cdc | 2.3.0 |  |
 
 ## 二、Hive行级权限解决方案
 在离线数仓工具Hive领域，由于发展多年，已经有Ranger来支持表数据的行级权限控制，详见参考文献[[2]](https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.0/authorization-ranger/content/row_level_filtering_in_hive_with_ranger_policies.html)。下图是在Ranger里配置Hive表行级过滤条件的页面，供参考。
@@ -69,9 +67,15 @@ SELECT * FROM orders;
 
 <br/>
 
-由于Flink实时数仓领域发展相对较短，Ranger还不支持FlinkSQL，因此开始自研实时数仓的行级权限解决工具。
+由于Flink实时数仓领域发展相对较短，Ranger还不支持FlinkSQL，因此开始**自研实时数仓的行级权限解决工具**。
 
 ## 三、FlinkSQL行级权限解决方案
+### 3.1 解决思路
+
+
+### 3.2 重写SQL
+#### 3.2.1 主要流程
+#### 3.2.2 核心源码
 
 ## 四、用例测试
 
