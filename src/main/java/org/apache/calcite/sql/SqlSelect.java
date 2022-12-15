@@ -24,6 +24,8 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 import org.apache.calcite.util.ImmutableNullableList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Objects;
@@ -43,6 +45,7 @@ import static com.dtwave.flink.security.Constant.SECURITY_USERNAME;
  * @date: 2022/12/14 12:24 PM
  */
 public class SqlSelect extends SqlCall {
+    private static final Logger LOG = LoggerFactory.getLogger(SqlSelect.class);
 
     public static final int FROM_OPERAND = 2;
     public static final int WHERE_OPERAND = 3;
@@ -87,7 +90,11 @@ public class SqlSelect extends SqlCall {
         this.hints = hints;
 
         // add row level filter condition for where clause
-        this.where = addCondition(from, where, false);
+        SqlNode rowFilterWhere = addCondition(from, where, false);
+        if (rowFilterWhere != where) {
+            LOG.info("Rewritten SQL based on row-level privilege filtering for user [{}]", System.getProperty(SECURITY_USERNAME));
+        }
+        this.where = rowFilterWhere;
     }
 
 

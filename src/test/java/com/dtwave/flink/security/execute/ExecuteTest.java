@@ -15,7 +15,7 @@ import org.junit.Test;
  * @version: 1.0.0
  * @date: 2022/12/14 6:00 PM
  */
-@Ignore
+//@Ignore
 public class ExecuteTest extends AbstractBasicTest {
 
 
@@ -25,12 +25,26 @@ public class ExecuteTest extends AbstractBasicTest {
         createTableOfOrders();
     }
 
+    /**
+     * Execute without row-level filter
+     */
+    @Test
+    public void testExecute() {
+        context.execute("SELECT * FROM orders").print();
+    }
 
+
+    /**
+     * Execute with the first user's row-level filter
+     */
     @Test
     public void testExecuteByFirstUser() {
         context.execute(FIRST_USER, "SELECT * FROM orders").print();
     }
 
+    /**
+     * Execute with the second user's row-level filter
+     */
     @Test
     public void testExecuteBySecondUser() {
         context.execute(SECOND_USER, "SELECT * FROM orders").print();
