@@ -83,7 +83,7 @@ SELECT * FROM orders;
 在SqlSelect对象构造Where条件时，系统通过执行用户和表名查找配置的行级权限条件，并会把此条件经过CalciteParser提供的parseExpression(String sqlExpression)方法解析生成一个SqlBacicCall返回。然后结合用户执行SQL和配置的行级权限条件重新组装Where条件，即生成新的带行级过滤条件Abstract Syntax Tree，最后基于新的AST再执行后续的Validate、Convert和Execute阶段。
 ![FlinkSQL row-level permissions solution.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20row-level%20permissions%20solution.png)
 
-以上整个过程对用户都是透明和无感知的，还是调用Flink自带的TableEnvironment.executeSql(String statement)来执行SQL即可。
+以上整个过程对执行SQL都是透明和无感知的，用户还是调用Flink自带的TableEnvironment.executeSql(String statement)方法即可。
 
 
 ### 3.2 重写SQL
