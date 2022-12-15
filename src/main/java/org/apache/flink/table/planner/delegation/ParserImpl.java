@@ -43,6 +43,8 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,19 +59,20 @@ import javax.annotation.Nullable;
 /**
  * Implementation of {@link Parser} that uses Calcite.
  *
- * @description: Added two methods: parseExpression(String sqlExpression) and parseSql(String statement)
+ * @description: Added two methods: parseExpression(String sqlExpression) and parseSql(String
+ * statement)
  * @author: baisong
  * @version: 1.0.0
  * @date: 2022/12/14 12:24 PM
  */
 public class ParserImpl implements Parser {
+    private static final Logger LOG = LoggerFactory.getLogger(ParserImpl.class);
 
     private final CatalogManager catalogManager;
 
     /**
-     *  we use supplier pattern here in order to use the most up to
-     *  date configuration. Users might change the parser configuration in a TableConfig in between
-     *   multiple statements parsing
+     * we use supplier pattern here in order to use the most up to date configuration. Users might
+     * change the parser configuration in a TableConfig in between multiple statements parsing
      */
     private final Supplier<FlinkPlannerImpl> validatorSupplier;
     private final Supplier<CalciteParser> calciteParserSupplier;
@@ -110,6 +113,7 @@ public class ParserImpl implements Parser {
         SqlNodeList sqlNodeList = parser.parseSqlList(statement);
         List<SqlNode> parsed = sqlNodeList.getList();
         Preconditions.checkArgument(parsed.size() == 1, "only single statement supported");
+        LOG.info("parsed sql: {}", parsed.toString());
         return Collections.singletonList(
                 SqlToOperationConverter.convert(planner, catalogManager, parsed.get(0))
                         .orElseThrow(() -> new TableException("Unsupported query: " + statement)));

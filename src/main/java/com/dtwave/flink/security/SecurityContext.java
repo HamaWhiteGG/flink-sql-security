@@ -72,7 +72,7 @@ public class SecurityContext {
     /**
      * Add row-level filter conditions and return new SQL
      */
-    public String addRowLevelFilter(String username, String singleSql) {
+    public String addRowFilter(String username, String singleSql) {
         System.setProperty(SECURITY_USERNAME, username);
 
         // in the modified SqlSelect, filter conditions will be added to the where clause
@@ -96,7 +96,7 @@ public class SecurityContext {
 
 
     /**
-     * Execute the single sql
+     * Execute the single sql without user permissions
      */
     public TableResult execute(String singleSql) {
         return tableEnv.executeSql(singleSql);
@@ -107,9 +107,8 @@ public class SecurityContext {
      * Execute the single sql with user permissions
      */
     public TableResult execute(String username, String singleSql) {
-        String newSql = addRowLevelFilter(username, singleSql);
-        LOG.info("new sql: {}", newSql);
-        return tableEnv.executeSql(newSql);
+        System.setProperty(SECURITY_USERNAME, username);
+        return tableEnv.executeSql(singleSql);
     }
 
     public Table<String, String, String> getRowLevelPermissions() {

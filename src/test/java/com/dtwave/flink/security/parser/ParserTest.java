@@ -44,7 +44,7 @@ public class ParserTest extends AbstractBasicTest {
         String inputSql = "SELECT * FROM orders";
         String expected = "SELECT * FROM orders WHERE region = 'beijing'";
 
-        testRowLevelFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(FIRST_USER, inputSql, expected);
     }
 
 
@@ -57,8 +57,8 @@ public class ParserTest extends AbstractBasicTest {
         String firstExpected = "SELECT * FROM orders WHERE region = 'beijing'";
         String secondExpected = "SELECT * FROM orders WHERE region = 'hangzhou'";
 
-        testRowLevelFilter(FIRST_USER, inputSql, firstExpected);
-        testRowLevelFilter(SECOND_USER, inputSql, secondExpected);
+        testRowFilter(FIRST_USER, inputSql, firstExpected);
+        testRowFilter(SECOND_USER, inputSql, secondExpected);
     }
 
 
@@ -70,7 +70,7 @@ public class ParserTest extends AbstractBasicTest {
         String inputSql = "SELECT * FROM orders WHERE price > 45.0";
         String expected = "SELECT * FROM orders WHERE price > 45.0 AND region = 'beijing'";
 
-        testRowLevelFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(FIRST_USER, inputSql, expected);
     }
 
 
@@ -83,7 +83,7 @@ public class ParserTest extends AbstractBasicTest {
         String inputSql = "SELECT * FROM orders WHERE price > 45.0 OR customer_name = 'John'";
         String expected = "SELECT * FROM orders WHERE (price > 45.0 OR customer_name = 'John') AND region = 'beijing'";
 
-        testRowLevelFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(FIRST_USER, inputSql, expected);
     }
 
 
@@ -95,7 +95,7 @@ public class ParserTest extends AbstractBasicTest {
         String inputSql = "SELECT customer_name, count(*) AS cnt FROM orders WHERE price > 45.0 GROUP BY customer_name";
         String expected = "SELECT customer_name, COUNT(*) AS cnt FROM orders WHERE price > 45.0 AND region = 'beijing' GROUP BY customer_name";
 
-        testRowLevelFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(FIRST_USER, inputSql, expected);
     }
 
 
@@ -107,7 +107,7 @@ public class ParserTest extends AbstractBasicTest {
         String inputSql = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id";
         String expected = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.region = 'beijing'";
 
-        testRowLevelFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(FIRST_USER, inputSql, expected);
     }
 
 
@@ -119,7 +119,7 @@ public class ParserTest extends AbstractBasicTest {
         String inputSql = "SELECT o.*, p.name, p.description FROM orders LEFT JOIN products ON orders.product_id = products.id";
         String expected = "SELECT o.*, p.name, p.description FROM orders LEFT JOIN products ON orders.product_id = products.id WHERE orders.region = 'beijing'";
 
-        testRowLevelFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(FIRST_USER, inputSql, expected);
     }
 
 
@@ -131,7 +131,7 @@ public class ParserTest extends AbstractBasicTest {
         String inputSql = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.price > 45.0 OR o.customer_name = 'John'";
         String expected = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE (o.price > 45.0 OR o.customer_name = 'John') AND o.region = 'beijing'";
 
-        testRowLevelFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(FIRST_USER, inputSql, expected);
     }
 
 
@@ -142,7 +142,7 @@ public class ParserTest extends AbstractBasicTest {
     public void testJoinSubQueryWhere() {
         String inputSql = "SELECT o.*, p.name, p.description FROM (SELECT * FROM orders WHERE order_status = false) AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.price > 45.0 OR o.customer_name = 'John'";
         String expected = "SELECT o.*, p.name, p.description FROM (SELECT * FROM orders WHERE order_status = FALSE AND region = 'beijing') AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.price > 45.0 OR o.customer_name = 'John'";
-        testRowLevelFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(FIRST_USER, inputSql, expected);
     }
 
 
@@ -155,7 +155,7 @@ public class ParserTest extends AbstractBasicTest {
         context.getRowLevelPermissions().put(FIRST_USER, PRODUCTS_TABLE, "name = 'hammer'");
         String inputSql = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id";
         String expected = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.region = 'beijing' AND p.name = 'hammer'";
-        testRowLevelFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(FIRST_USER, inputSql, expected);
 
         // delete permission
         context.getRowLevelPermissions().remove(FIRST_USER, PRODUCTS_TABLE);
@@ -175,7 +175,7 @@ public class ParserTest extends AbstractBasicTest {
         String inputSql = "SELECT o.*, p.name, p.description, s.shipment_id, s.origin, s.destination, s.is_arrived FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id LEFT JOIN shipments AS s ON o.order_id = s.order_id";
         String expected = "SELECT o.*, p.name, p.description, s.shipment_id, s.origin, s.destination, s.is_arrived FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id LEFT JOIN shipments AS s ON o.order_id = s.order_id WHERE o.region = 'beijing' AND p.name = 'hammer' AND s.is_arrived = FALSE";
 
-        testRowLevelFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(FIRST_USER, inputSql, expected);
 
         // delete permission
         context.getRowLevelPermissions().remove(FIRST_USER, PRODUCTS_TABLE);
@@ -194,7 +194,7 @@ public class ParserTest extends AbstractBasicTest {
         // the following () is what Calcite would automatically add
         String expected = "INSERT INTO print_sink (SELECT * FROM orders WHERE region = 'beijing')";
 
-        testRowLevelFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(FIRST_USER, inputSql, expected);
     }
 
 
@@ -209,12 +209,12 @@ public class ParserTest extends AbstractBasicTest {
         // the following () is what Calcite would automatically add
         String expected = "INSERT INTO print_sink (SELECT * FROM (SELECT * FROM orders WHERE region = 'beijing'))";
 
-        testRowLevelFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(FIRST_USER, inputSql, expected);
     }
 
 
-    private void testRowLevelFilter(String username, String inputSql, String expectedSql) {
-        String resultSql = context.addRowLevelFilter(username, inputSql);
+    private void testRowFilter(String username, String inputSql, String expectedSql) {
+        String resultSql = context.addRowFilter(username, inputSql);
         // replace \n with spaces and remove single apostrophes
         resultSql = resultSql.replace("\n", " ").replace("`", "");
 
