@@ -12,8 +12,6 @@ FlinkSQL的行级权限解决方案及源码，支持面向个人级别的行级
 </br>
 源码地址: https://github.com/HamaWhiteGG/flink-sql-security
 
-作者邮箱: song.bs@dtwave-inc.com
-
 
 ## 一、基础知识
 ### 1.1 行级权限
@@ -91,8 +89,10 @@ SELECT * FROM orders;
 > 注: 要通过技术手段把执行用户传递到Calcite SqlSelect中。
 
 ### 3.2 重写SQL
+主要在org.apache.calcite.sql.SqlSelect的构造方法中完成。
 #### 3.2.1 主要流程
 #### 3.2.2 核心源码
+
 
 ## 四、用例测试
 
