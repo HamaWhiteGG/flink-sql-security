@@ -67,10 +67,14 @@ SELECT * FROM orders;
 
 <br/>
 
-由于Flink实时数仓领域发展相对较短，Ranger还不支持FlinkSQL，因此开始**自研实时数仓的行级权限解决工具**。
+由于Flink实时数仓领域发展相对较短，Ranger还不支持FlinkSQL以及依赖Ranger过重，因此开始**自研实时数仓的行级权限解决工具**。
 
 ## 三、FlinkSQL行级权限解决方案
 ### 3.1 解决思路
+#### 3.1.1 FlinkSQL执行流程
+参考作者文章[[FlinkSQL字段血缘解决方案及源码]](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)可知，FlinkSQL的执行流程如下图所示。
+> 注: 根据Flink1.16版本图有所修正。
+
 
 
 ### 3.2 重写SQL
@@ -81,8 +85,13 @@ SELECT * FROM orders;
 
 ## 五、源码修改步骤
 
-## 六、参考文献
+## 六、下一步计划
+1. 开发ranger-flink-plugin
+2. 自定义Flink语法来配置行级策略
+
+## 七、参考文献
 1. [数据管理DMS-敏感数据管理-行级管控](https://help.aliyun.com/document_detail/161149.html)
 2. [Apache Ranger Row-level Filter](https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.0/authorization-ranger/content/row_level_filtering_in_hive_with_ranger_policies.html)
 3. [OpenLooKeng的行级权限控制](https://www.modb.pro/db/212124)
+4. [PostgreSQL中的行级权限/数据权限/行安全策略](https://www.kankanzhijian.com/2018/09/28/PostgreSQL-rowsecurity/)
 
