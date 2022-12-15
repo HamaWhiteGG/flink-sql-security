@@ -43,12 +43,19 @@ SELECT * FROM orders;
 | --- | --- | --- | --- |  --- |  --- |  --- | 
 | 10001 | 2020-07-30 10:08:22 | Jack | 50.50 | 102 | false | beijing |
 | 10002 | 2020-07-30 10:11:09 | Sally | 15.00 | 105 | false | beijing | 
+> 注: 系统底层执行的最终SQL是: SELECT * FROM orders WHERE region = 'beijing' 。 
+
+<br/>
 
 用户B查看到的结果数据:
 | order_id |  order_date | customer_name | price |  product_id |  order_status |  region |  
 | --- | --- | --- | --- |  --- |  --- |  --- | 
 | 10003 | 2020-07-30 12:00:30 | Edward | 25.25 | 106 | false | hangzhou | 
 | 10004 | 2022-12-15 12:11:09 | John | 78.00 | 103 | false | hangzhou | 
+> 注: 系统底层执行的最终SQL是: SELECT * FROM orders WHERE region = 'hangzhou' 。 
 
 
+## 参考文献
+1. [数据管理DMS-敏感数据管理-行级管控](https://help.aliyun.com/document_detail/161149.html)
+2. [Apache Ranger Row-level Filter](https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.0/authorization-ranger/content/row_level_filtering_in_hive_with_ranger_policies.html)
 
