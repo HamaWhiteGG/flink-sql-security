@@ -64,6 +64,7 @@ SELECT * FROM orders;
 | Scala | 2.12 |  |
 
 ## 二、Hive行级权限解决方案
+在离线数仓工具Hive领域，已经有Ranger来支持行级权限过滤，详见参考文献[2](https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.0/authorization-ranger/content/row_level_filtering_in_hive_with_ranger_policies.html)
 
 ## 三、FlinkSQL行级权限解决方案
 
@@ -74,4 +75,5 @@ SELECT * FROM orders;
 ## 六、参考文献
 1. [数据管理DMS-敏感数据管理-行级管控](https://help.aliyun.com/document_detail/161149.html)
 2. [Apache Ranger Row-level Filter](https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.0/authorization-ranger/content/row_level_filtering_in_hive_with_ranger_policies.html)
+3. [OpenLooKeng的行级权限控制](https://www.modb.pro/db/212124)
 
