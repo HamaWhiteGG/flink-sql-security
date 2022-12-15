@@ -38,7 +38,7 @@ FlinkSQL的行级权限解决方案及源码，支持面向个人级别的行级
 SELECT * FROM orders;
 ```
 
-用户A查看到的结果数据:
+**用户A查看到的结果数据**:
 | order_id |  order_date | customer_name | price |  product_id |  order_status |  region | 
 | --- | --- | --- | --- |  --- |  --- |  --- | 
 | 10001 | 2020-07-30 10:08:22 | Jack | 50.50 | 102 | false | beijing |
@@ -47,7 +47,7 @@ SELECT * FROM orders;
 
 <br/>
 
-用户B查看到的结果数据:
+**用户B查看到的结果数据**:
 | order_id |  order_date | customer_name | price |  product_id |  order_status |  region |  
 | --- | --- | --- | --- |  --- |  --- |  --- | 
 | 10003 | 2020-07-30 12:00:30 | Edward | 25.25 | 106 | false | hangzhou | 
@@ -66,6 +66,8 @@ SELECT * FROM orders;
 ## 二、Hive行级权限解决方案
 在离线数仓工具Hive领域，由于发展多年，已经有Ranger来支持表数据的行级权限控制，详见参考文献[[2]](https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.0/authorization-ranger/content/row_level_filtering_in_hive_with_ranger_policies.html)。下图是在Ranger里配置Hive表行级过滤条件的页面，供参考。
 ![Hive-Ranger row level filter.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/Hive-Ranger%20row%20level%20filter.png)
+
+<br/>
 
 由于Flink实时数仓领域发展相对较短，Ranger还不支持FlinkSQL，因此开始自研实时数仓的行级权限解决工具。
 
