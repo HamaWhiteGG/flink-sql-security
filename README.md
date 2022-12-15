@@ -1,6 +1,6 @@
 # flink-sql-security
 
-FlinkSQL的行级权限解决方案及源码，支持面向个人级别的行级数据访问控制，类似于Ranger Row-level Filter(Hive)。
+FlinkSQL的行级权限解决方案及源码，支持面向个人级别的行级数据访问控制，即特定用户只能访问授权过的行，隐藏未授权的行数据。此方案是实时领域Flink的解决方案，类似离线数仓Hive中Ranger Row-level Filter方案。
 
 <br/>
 
@@ -64,7 +64,7 @@ SELECT * FROM orders;
 | Scala | 2.12 |  |
 
 ## 二、Hive行级权限解决方案
-在离线数仓工具Hive领域，已经有Ranger来支持行级权限过滤，详见参考文献[2](https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.0/authorization-ranger/content/row_level_filtering_in_hive_with_ranger_policies.html)
+在离线数仓工具Hive领域，已经有Ranger来支持表数据的行级权限控制，详见参考文献[[2]](https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.0/authorization-ranger/content/row_level_filtering_in_hive_with_ranger_policies.html)。
 
 ## 三、FlinkSQL行级权限解决方案
 
