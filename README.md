@@ -53,7 +53,8 @@ SELECT * FROM orders;
 | 10003 | 2020-07-30 12:00:30 | Edward | 25.25 | 106 | false | hangzhou | 
 | 10004 | 2022-12-15 12:11:09 | John | 78.00 | 103 | false | hangzhou | 
 > 注: 系统底层执行的最终SQL是: SELECT * FROM orders WHERE region = 'hangzhou' 。 
-> 
+
+
 ### 1.3 组件版本
 | 组件名称 | 版本 | 备注 |
 | --- | --- | --- |
@@ -74,6 +75,7 @@ SELECT * FROM orders;
 #### 3.1.1 FlinkSQL执行流程
 参考作者文章[[FlinkSQL字段血缘解决方案及源码]](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)可知，FlinkSQL的执行流程如下图所示。
 > 注: 根据Flink1.16版本图有所修正和简化。
+
 ![FlinkSQL simple-execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20simple-execution%20flowchart.png)
 
 #### 3.1.2 解决思路
