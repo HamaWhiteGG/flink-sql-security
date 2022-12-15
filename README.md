@@ -70,12 +70,13 @@ SELECT * FROM orders;
 由于Flink实时数仓领域发展相对较短，Ranger还不支持FlinkSQL以及依赖Ranger过重，因此开始**自研实时数仓的行级权限解决工具**。
 
 ## 三、FlinkSQL行级权限解决方案
-### 3.1 解决思路
+### 3.1 解决方案
 #### 3.1.1 FlinkSQL执行流程
 参考作者文章[[FlinkSQL字段血缘解决方案及源码]](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)可知，FlinkSQL的执行流程如下图所示。
-> 注: 根据Flink1.16版本图有所修正。
+> 注: 根据Flink1.16版本图有所修正和简化。
+![FlinkSQL simple-execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20simple-execution%20flowchart.png)
 
-
+#### 3.1.2 解决思路
 
 ### 3.2 重写SQL
 #### 3.2.1 主要流程
