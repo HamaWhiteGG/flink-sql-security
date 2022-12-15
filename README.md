@@ -76,9 +76,14 @@ SELECT * FROM orders;
 ![FlinkSQL simple-execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20simple-execution%20flowchart.png)
 
 #### 3.1.2 解决思路
-在Parser阶段，结合用户执行SQL和配置的行级权限条件生成新的Where条件，即生成带行级过滤条件的Abstract Syntax Tree。
+
+在Parser阶段，如果执行的SQL包含对表的查询操作，则一定会构建Calcite SqlSelect对象。因此限制表的行级权限，只要在Calcite SqlSelect对象构建Where条件进行拦截即可，而不需要根据用户执行的各种SQL来解析查找带行级权限条件约束的表。
+
+
+在SqlSelect对象构造Where条件时，系统通过执行用户和表名查找配置的行级权限条件，并会把此条件经过CalciteParser提供的parseExpression(String sqlExpression)方法解析生成一个SqlBacicCall返回。然后结合用户执行SQL和配置的行级权限条件重新组装Where条件，即生成新的带行级过滤条件Abstract Syntax Tree，最后基于新的AST再执行后续的Validate、Convert和Execute阶段。
 ![FlinkSQL row-level permissions solution.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20row-level%20permissions%20solution.png)
 
+以上整个过程对用户都是透明和无感知的，还是调用Flink自带的TableEnvironment.executeSql(String statement)来执行SQL即可。
 
 
 ### 3.2 重写SQL
