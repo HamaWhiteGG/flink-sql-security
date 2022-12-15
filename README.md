@@ -24,12 +24,31 @@ FlinkSQL的行级权限解决方案及源码，支持面向个人级别的行级
 #### 2.1.1 设置行级权限
 管理员配置用户、表、权限点，例如下面的配置。
 | 序号 |  用户名 | 表名 | 权限点 | 
-| --- | --- | --- | --- | --- |
-| 1 | 用户A | orders | region = 'beijing' |
-| 2 | 用户B | orders | region = 'hangzhou' |
+| --- | --- | --- | --- | 
+| 1 | 用户A | orders | region = 'beijing' | 
+| 2 | 用户B | orders | region = 'hangzhou' | 
+
 
 #### 2.1.2 用户查询数据
-用户在系统上查询orders表数据时，系统在底层查询数据时会自动根据用户的权限点来过滤数据，即让行级权限自动生效。
+用户在系统上查询orders表数据时，系统在底层查询数据时会自动根据用户的权限点来过滤数据，即让行级权限点自动生效。
+
+当用户A和用户B均执行下述SQL时，
+
+```sql
+SELECT * FROM orders;
+```
+
+用户A查看到的结果数据:
+| order_id |  order_date | customer_name | price |  product_id |  order_status |  region | 
+| --- | --- | --- | --- |  --- |  --- |  --- | 
+| 10001 | 2020-07-30 10:08:22 | Jack | 50.50 | 102 | false | beijing |
+| 10002 | 2020-07-30 10:11:09 | Sally | 15.00 | 105 | false | beijing | 
+
+用户B查看到的结果数据:
+| order_id |  order_date | customer_name | price |  product_id |  order_status |  region |  
+| --- | --- | --- | --- |  --- |  --- |  --- | 
+| 10003 | 2020-07-30 12:00:30 | Edward | 25.25 | 106 | false | hangzhou | 
+| 10004 | 2022-12-15 12:11:09 | John | 78.00 | 103 | false | hangzhou | 
 
 
 
