@@ -12,5 +12,5 @@ public class Constant {
         throw new IllegalStateException("Utility class");
     }
 
-    public static final String SECURITY_USERNAME = "security.username";
+    public static final String EXECUTE_USERNAME = "execute.username";
 }
