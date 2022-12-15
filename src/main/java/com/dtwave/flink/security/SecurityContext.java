@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Random;
 
-import static com.dtwave.flink.security.Constant.SECURITY_USERNAME;
+import static com.dtwave.flink.security.Constant.EXECUTE_USERNAME;
 
 /**
  * @description: SecurityContext
@@ -73,7 +73,7 @@ public class SecurityContext {
      * Add row-level filter conditions and return new SQL
      */
     public String addRowFilter(String username, String singleSql) {
-        System.setProperty(SECURITY_USERNAME, username);
+        System.setProperty(EXECUTE_USERNAME, username);
 
         // in the modified SqlSelect, filter conditions will be added to the where clause
         SqlNode parsedTree = tableEnv.getParser().parseSql(singleSql);
@@ -107,7 +107,7 @@ public class SecurityContext {
      * Execute the single sql with user permissions
      */
     public TableResult execute(String username, String singleSql) {
-        System.setProperty(SECURITY_USERNAME, username);
+        System.setProperty(EXECUTE_USERNAME, username);
         return tableEnv.executeSql(singleSql);
     }
 

@@ -32,7 +32,7 @@ import java.util.Objects;
 
 import javax.annotation.Nonnull;
 
-import static com.dtwave.flink.security.Constant.SECURITY_USERNAME;
+import static com.dtwave.flink.security.Constant.EXECUTE_USERNAME;
 
 /**
  * A <code>SqlSelect</code> is a node of a parse tree which represents a select statement. It
@@ -92,7 +92,7 @@ public class SqlSelect extends SqlCall {
         // add row level filter condition for where clause
         SqlNode rowFilterWhere = addCondition(from, where, false);
         if (rowFilterWhere != where) {
-            LOG.info("Rewritten SQL based on row-level privilege filtering for user [{}]", System.getProperty(SECURITY_USERNAME));
+            LOG.info("Rewritten SQL based on row-level privilege filtering for user [{}]", System.getProperty(EXECUTE_USERNAME));
         }
         this.where = rowFilterWhere;
     }
@@ -134,7 +134,7 @@ public class SqlSelect extends SqlCall {
      * Add row-level filtering based on user-configured permission points
      */
     private SqlNode addPermission(SqlNode where, String tableName, String tableAlias) {
-        String username = System.getProperty(SECURITY_USERNAME);
+        String username = System.getProperty(EXECUTE_USERNAME);
         SqlBasicCall permissions = SecurityContext.getInstance().queryPermissions(username, tableName);
 
         // add an alias
