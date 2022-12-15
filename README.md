@@ -58,7 +58,6 @@ SELECT * FROM orders;
 ### 1.3 组件版本
 | 组件名称 | 版本 | 备注 |
 | --- | --- | --- |
-| JDK | 1.8 | |
 | Flink | 1.16.0 |  
 | Flink-connector-mysql-cdc | 2.3.0 |  |
 
@@ -77,8 +76,8 @@ SELECT * FROM orders;
 ![FlinkSQL simple-execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20simple-execution%20flowchart.png)
 
 #### 3.1.2 解决思路
-在Parser阶段，结合用户执行SQL和配置的行级约束条件生成新的Where条件，即生成带行级过滤条件的Abstract Syntax Tree。
-
+在Parser阶段，结合用户执行SQL和配置的行级权限条件生成新的Where条件，即生成带行级过滤条件的Abstract Syntax Tree。
+![FlinkSQL row-level permissions solution.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20row-level%20permissions%20solution.png)
 
 
 
