@@ -73,12 +73,14 @@ SELECT * FROM orders;
 ## 三、FlinkSQL行级权限解决方案
 ### 3.1 解决方案
 #### 3.1.1 FlinkSQL执行流程
-参考作者文章[[FlinkSQL字段血缘解决方案及源码]](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)可知，FlinkSQL的执行流程如下图所示。
-> 注: 根据Flink1.16版本图有所修正和简化。
-
+可以参考作者文章[[FlinkSQL字段血缘解决方案及源码]](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)，下面根据Flink1.16修正和简化后的执行流程如下图所示。
 ![FlinkSQL simple-execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20simple-execution%20flowchart.png)
 
 #### 3.1.2 解决思路
+在Parser阶段，结合用户执行SQL和配置的行级约束条件生成新的Where条件，即生成带行级过滤条件的Abstract Syntax Tree。
+
+
+
 
 ### 3.2 重写SQL
 #### 3.2.1 主要流程
@@ -97,4 +99,5 @@ SELECT * FROM orders;
 2. [Apache Ranger Row-level Filter](https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.0/authorization-ranger/content/row_level_filtering_in_hive_with_ranger_policies.html)
 3. [OpenLooKeng的行级权限控制](https://www.modb.pro/db/212124)
 4. [PostgreSQL中的行级权限/数据权限/行安全策略](https://www.kankanzhijian.com/2018/09/28/PostgreSQL-rowsecurity/)
+5. [FlinkSQL字段血缘解决方案及源码](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)，
 
