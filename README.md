@@ -138,7 +138,7 @@ private SqlNode addCondition(SqlNode from, SqlNode where, boolean fromJoin) {
 [[6]](https://ververica.github.io/flink-cdc-connectors/master/content/%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B/mysql-postgres-tutorial-zh.html)官网，在此表示感谢。
 
 ### 4.1 新建Mysql表及初始化数据
-Mysql新建表语句及初始化SQL详见源码[[flink-sql-security/data/database/]](https://github.com/HamaWhiteGG/flink-sql-security/tree/main/data/database)里面的mysql_ddl.sql和mysql_init.sql文件。
+Mysql新建表语句及初始化数据SQL详见源码[[flink-sql-security/data/database]](https://github.com/HamaWhiteGG/flink-sql-security/tree/main/data/database)里面的mysql_ddl.sql和mysql_init.sql文件。
 
 ### 4.2 新建Flink表
 
@@ -157,10 +157,10 @@ CREATE TABLE IF NOT EXISTS orders (
     region STRING
 ) WITH (
     'connector'='mysql-cdc',
-    'hostname'='192.168.90.150',
+    'hostname'='xxx.xxx.xxx.xxx',
     'port'='3306',
     'username'='root',
-    'password'='root@123456',
+    'password'='xxx',
     'server-time-zone'='Asia/Shanghai',
     'database-name'='demo',
     'table-name'='orders'
@@ -178,10 +178,10 @@ CREATE TABLE IF NOT EXISTS products (
     description STRING
 ) WITH (
     'connector'='mysql-cdc',
-    'hostname'='192.168.90.150',
+    'hostname'='xxx.xxx.xxx.xxx',
     'port'='3306',
     'username'='root',
-    'password'='root@123456',
+    'password'='xxx',
     'server-time-zone'='Asia/Shanghai',
     'database-name'='demo',
     'table-name'='products'
@@ -201,10 +201,10 @@ CREATE TABLE IF NOT EXISTS shipments (
     is_arrived BOOLEAN
 ) WITH (
     'connector'='mysql-cdc',
-    'hostname'='192.168.90.150',
+    'hostname'='xxx.xxx.xxx.xxx',
     'port'='3306',
     'username'='root',
-    'password'='root@123456',
+    'password'='xxx',
     'server-time-zone'='Asia/Shanghai',
     'database-name'='demo',
     'table-name'='shipments'
@@ -230,17 +230,37 @@ CREATE TABLE IF NOT EXISTS print_sink (
 ```
 
 ### 4.3 测试用例
-详细测试用例可查看源码中的单测，下面只描述五个测试点。
+详细测试用例可查看源码中的单测，下面只描述部分测试点。
 
 #### 4.3.1 简单SELECT
+##### 4.3.1.1 行级权限条件
+##### 4.3.1.2 输入SQL
+##### 4.3.1.3 输出SQL
+##### 4.3.1.4 测试小节
 
 #### 4.3.2 SELECT带WHERE约束
+##### 4.3.2.1 行级权限条件
+##### 4.3.2.2 输入SQL
+##### 4.3.2.3 输出SQL
+##### 4.3.2.4 测试小节
 
-#### 4.3.3 两表JOIN
+#### 4.3.3 三表JOIN
+##### 4.3.3.1 行级权限条件
+##### 4.3.3.2 输入SQL
+##### 4.3.3.3 输出SQL
+##### 4.3.3.4 测试小节
 
-#### 4.3.4 三表JOIN
+#### 4.3.4 INSERT来自带子查询的SELECT
+##### 4.3.4.1 行级权限条件
+##### 4.3.4.2 输入SQL
+##### 4.3.4.3 输出SQL
+##### 4.3.4.4 测试小节
 
-#### 4.3.5 INSERT来自带子查询的SELECT
+#### 4.3.5 运行SQL
+##### 4.3.5.1 行级权限条件
+##### 4.3.5.2 输入SQL
+##### 4.3.5.3 输出SQL
+##### 4.3.5.4 测试小节
 
 ## 五、源码修改步骤
 
