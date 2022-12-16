@@ -362,25 +362,24 @@ public TableResult execute(String username, String singleSql) {
 ### 5.1 新增Parser和ParserImpl类
 复制Flink源码中的org.apache.flink.table.delegation.Parser和org.apache.flink.table.planner.delegation.ParserImpl到项目下，新增下面两个方法及实现。
 ```java
+/**
+ * Parses a SQL expression into a {@link SqlNode}. The {@link SqlNode} is not yet validated.
+ *
+ * @param sqlExpression a SQL expression string to parse
+ * @return a parsed SQL node
+ * @throws SqlParserException if an exception is thrown when parsing the statement
+ */
+SqlNode parseExpression(String sqlExpression);
 
-    /**
-     * Parses a SQL expression into a {@link SqlNode}. The {@link SqlNode} is not yet validated.
-     *
-     * @param sqlExpression a SQL expression string to parse
-     * @return a parsed SQL node
-     * @throws SqlParserException if an exception is thrown when parsing the statement
-     */
-    SqlNode parseExpression(String sqlExpression);
 
-
-    /**
-     * Entry point for parsing SQL queries and return the abstract syntax tree
-     *
-     * @param statement the SQL statement to evaluate
-     * @return abstract syntax tree
-     * @throws org.apache.flink.table.api.SqlParserException when failed to parse the statement
-     */
-    SqlNode parseSql(String statement);
+/**
+ * Entry point for parsing SQL queries and return the abstract syntax tree
+ *
+ * @param statement the SQL statement to evaluate
+ * @return abstract syntax tree
+ * @throws org.apache.flink.table.api.SqlParserException when failed to parse the statement
+ */
+SqlNode parseSql(String statement);
 ```
 ### 5.2 新增SqlSelect类
 复制Calcite源码中的org.apache.calcite.sql.SqlSelect到项目下，新增上文提到的addCondition、addPermission、buildWhereClause三个方法。
