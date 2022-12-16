@@ -91,7 +91,7 @@ SELECT * FROM orders;
 ### 3.2 重写SQL
 主要在org.apache.calcite.sql.SqlSelect的构造方法中完成。
 #### 3.2.1 主要流程
-主流流程如下图所示，会根据from的类型进行不同的操作，例如针对表Join，要在Where条件后追加别名；针对三张表及以上的Join，要支持递归操作；针对包含子查询的Join，只要把行级权限条件追加到子查询中即可，在下面的**用例测试**章节会详细说明。
+主流流程如下图所示，会根据from的类型进行不同的操作，例如针对表Join，要在Where条件后追加别名；针对三张表及以上的Join，要支持递归操作，在下面的**用例测试**章节会举例说明。
 
 然后再获取行级权限解析后生成SqlBacicCall类型的Permissions，并给Permissions增加别名，最后把已有Where和Permission进行组装生成新的Where，来作为SqlSelect对象的Where约束。
 
@@ -359,6 +359,80 @@ public TableResult execute(String username, String singleSql) {
 ```
 
 ## 五、源码修改步骤
+> 注: Flink版本1.16.0依赖的Calcite是1.26.0版本。
+### 5.1 新增Parser和ParserImpl类
+复制Flink源码中的org.apache.flink.table.delegation.Parser和org.apache.flink.table.planner.delegation.ParserImpl到项目下，新增下面两个方法及实现。
+```java
+
+    /**
+     * Parses a SQL expression into a {@link SqlNode}. The {@link SqlNode} is not yet validated.
+     *
+     * @param sqlExpression a SQL expression string to parse
+     * @return a parsed SQL node
+     * @throws SqlParserException if an exception is thrown when parsing the statement
+     */
+    SqlNode parseExpression(String sqlExpression);
+
+
+    /**
+     * Entry point for parsing SQL queries and return the abstract syntax tree
+     *
+     * @param statement the SQL statement to evaluate
+     * @return abstract syntax tree
+     * @throws org.apache.flink.table.api.SqlParserException when failed to parse the statement
+     */
+    SqlNode parseSql(String statement);
+```
+### 5.2 新增SqlSelect类
+复制Calcite源码中的org.apache.calcite.sql.SqlSelect到项目下，新增上文提到的addCondition、addPermission、buildWhereClause三个方法。
+并且在构造方法中注释掉原有的this.where = where行，并添加如下代码:
+```java
+// add row level filter condition for where clause
+SqlNode rowFilterWhere = addCondition(from, where, false);
+if (rowFilterWhere != where) {
+    LOG.info("Rewritten SQL based on row-level privilege filtering for user [{}]", System.getProperty(EXECUTE_USERNAME));
+}
+this.where = rowFilterWhere;
+```
+
+### 5.3 封装SecurityContext类
+新建SecurityContext类，主要添加下面三个方法:
+```java
+/**
+ * Add row-level filter conditions and return new SQL
+ */
+public String addRowFilter(String username, String singleSql) {
+    System.setProperty(EXECUTE_USERNAME, username);
+
+    // in the modified SqlSelect, filter conditions will be added to the where clause
+    SqlNode parsedTree = tableEnv.getParser().parseSql(singleSql);
+    return parsedTree.toString();
+}
+
+
+/**
+ * Query the configured permission point according to the user name and table name, and return
+ * it to SqlBasicCall
+ */
+public SqlBasicCall queryPermissions(String username, String tableName) {
+    String permissions = rowLevelPermissions.get(username, tableName);
+    LOG.info("username: {}, tableName: {}, permissions: {}", username, tableName, permissions);
+    if (permissions != null) {
+        return (SqlBasicCall) tableEnv.getParser().parseExpression(permissions);
+    }
+    return null;
+}
+
+
+/**
+ * Execute the single sql with user permissions
+ */
+public TableResult execute(String username, String singleSql) {
+    System.setProperty(EXECUTE_USERNAME, username);
+    return tableEnv.executeSql(singleSql);
+}
+
+```
 
 ## 六、下一步计划
 1. 开发ranger-flink-plugin
