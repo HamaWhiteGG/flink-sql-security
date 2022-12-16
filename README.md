@@ -306,7 +306,7 @@ WHERE
   AND s.is_arrived=FALSE
 ```
 ##### 4.3.3.4 测试小结
-三张表JOIN，会分别获取每张表的行级权限条件，然后拼接对应的别名，最后组装到WHERE子句后面。
+三张表JOIN，会分别获取每张表的行级权限条件，然后拼接对应的表别名，最后组装到WHERE子句后面。
 
 #### 4.3.4 INSERT来自带子查询的SELECT
 ##### 4.3.4.1 行级权限条件
@@ -337,11 +337,12 @@ INSERT INTO print_sink (SELECT * FROM (SELECT * FROM orders WHERE region = 'beij
 SELECT * FROM orders
 ```
 ##### 4.3.5.3 执行SQL
-用户A的执行SQL：
+用户A的真实执行SQL:
 ```sql
 SELECT * FROM orders WHERE region = 'beijing'
+```
 
-用户A的执行SQL：
+用户B的真实执行SQL:
 ```sql 
 SELECT * FROM orders WHERE region = 'hangzhou'
 ```
