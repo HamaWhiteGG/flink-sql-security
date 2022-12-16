@@ -91,7 +91,10 @@ SELECT * FROM orders;
 ### 3.2 重写SQL
 主要在org.apache.calcite.sql.SqlSelect的构造方法中完成。
 #### 3.2.1 主要流程
-主流流程如下图所示，会根据from的类型进行不同的操作，例如针对表Join，要在Where条件后追加别名；针对三张表及以上的Join，要支持递归操作；针对包含子查询的Join，只要把行级权限条件追加到子查询中即可，在下面的**用例测试**章节会详细说明。然后再获取行级权限解析后生成SqlBacicCall类型的Permissions，并给Permissions增加别名，最后把已有Where和Permission进行组装生成新的Where，来作为SqlSelect对象的Where约束。
+主流流程如下图所示，会根据from的类型进行不同的操作，例如针对表Join，要在Where条件后追加别名；针对三张表及以上的Join，要支持递归操作；针对包含子查询的Join，只要把行级权限条件追加到子查询中即可，在下面的**用例测试**章节会详细说明。
+
+然后再获取行级权限解析后生成SqlBacicCall类型的Permissions，并给Permissions增加别名，最后把已有Where和Permission进行组装生成新的Where，来作为SqlSelect对象的Where约束。
+
 ![Rewrite the main process of SQL.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/Rewrite%20the%20main%20process%20of%20SQL.png)
 #### 3.2.2 核心源码
 核心源码位于SqlSelect中新增的addCondition、addPermission、buildWhereClause三个方法，下面只给出控制主流程addCondition的源码。
@@ -131,6 +134,113 @@ private SqlNode addCondition(SqlNode from, SqlNode where, boolean fromJoin) {
 ```
 
 ## 四、用例测试
+用例测试数据源自于CDC Connectors for Apache Flink
+[[6]](https://ververica.github.io/flink-cdc-connectors/master/content/%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B/mysql-postgres-tutorial-zh.html)官网，在此表示感谢。
+
+### 4.1 新建Mysql表及初始化数据
+Mysql新建表语句及初始化SQL详见源码[[flink-sql-security/data/database/]](https://github.com/HamaWhiteGG/flink-sql-security/tree/main/data/database)里面的mysql_ddl.sql和mysql_init.sql文件。
+
+### 4.2 新建Flink表
+
+#### 4.2.1 新建mysql cdc类型的orders表
+
+```sql
+DROP TABLE IF EXISTS orders;
+
+CREATE TABLE IF NOT EXISTS orders (
+    order_id INT PRIMARY KEY NOT ENFORCED,
+    order_date TIMESTAMP(0),
+    customer_name STRING,
+    product_id INT,
+    price DECIMAL(10, 5),
+    order_status BOOLEAN,
+    region STRING
+) WITH (
+    'connector'='mysql-cdc',
+    'hostname'='192.168.90.150',
+    'port'='3306',
+    'username'='root',
+    'password'='root@123456',
+    'server-time-zone'='Asia/Shanghai',
+    'database-name'='demo',
+    'table-name'='orders'
+);
+```
+
+#### 4.2.2 新建mysql cdc类型的products表
+
+```sql
+DROP TABLE IF EXISTS products;
+
+CREATE TABLE IF NOT EXISTS products (
+    id INT PRIMARY KEY NOT ENFORCED,
+    name STRING,
+    description STRING
+) WITH (
+    'connector'='mysql-cdc',
+    'hostname'='192.168.90.150',
+    'port'='3306',
+    'username'='root',
+    'password'='root@123456',
+    'server-time-zone'='Asia/Shanghai',
+    'database-name'='demo',
+    'table-name'='products'
+)
+```
+
+#### 4.2.3 新建mysql cdc类型shipments表
+
+```sql
+DROP TABLE IF EXISTS shipments;
+
+CREATE TABLE IF NOT EXISTS shipments (
+    shipment_id INT PRIMARY KEY NOT ENFORCED,
+    order_id INT,
+    origin STRING,
+    destination STRING,
+    is_arrived BOOLEAN
+) WITH (
+    'connector'='mysql-cdc',
+    'hostname'='192.168.90.150',
+    'port'='3306',
+    'username'='root',
+    'password'='root@123456',
+    'server-time-zone'='Asia/Shanghai',
+    'database-name'='demo',
+    'table-name'='shipments'
+)
+```
+
+#### 4.2.4 新建print类型print_sink表
+
+```sql
+DROP TABLE IF EXISTS print_sink;
+
+CREATE TABLE IF NOT EXISTS print_sink (
+    order_id INT PRIMARY KEY NOT ENFORCED,
+    order_date TIMESTAMP(0),
+    customer_name STRING,
+    product_id INT,
+    price DECIMAL(10, 5),
+    order_status BOOLEAN,
+    region STRING
+) WITH (
+    'connector'='print'
+)
+```
+
+### 4.3 测试用例
+详细测试用例可查看源码中的单测，下面只描述五个测试点。
+
+#### 4.3.1 简单SELECT
+
+#### 4.3.2 SELECT带WHERE约束
+
+#### 4.3.3 两表JOIN
+
+#### 4.3.4 三表JOIN
+
+#### 4.3.5 INSERT来自带子查询的SELECT
 
 ## 五、源码修改步骤
 
@@ -143,5 +253,6 @@ private SqlNode addCondition(SqlNode from, SqlNode where, boolean fromJoin) {
 2. [Apache Ranger Row-level Filter](https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.0/authorization-ranger/content/row_level_filtering_in_hive_with_ranger_policies.html)
 3. [OpenLooKeng的行级权限控制](https://www.modb.pro/db/212124)
 4. [PostgreSQL中的行级权限/数据权限/行安全策略](https://www.kankanzhijian.com/2018/09/28/PostgreSQL-rowsecurity/)
-5. [FlinkSQL字段血缘解决方案及源码](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)，
+5. [FlinkSQL字段血缘解决方案及源码](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)
+6. [基于 Flink CDC 构建 MySQL 和 Postgres 的 Streaming ETL](https://ververica.github.io/flink-cdc-connectors/master/content/%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B/mysql-postgres-tutorial-zh.html)
 
