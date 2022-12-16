@@ -91,7 +91,7 @@ SELECT * FROM orders;
 ### 3.2 重写SQL
 主要在org.apache.calcite.sql.SqlSelect的构造方法中完成。
 #### 3.2.1 主要流程
-主流流程如下图所示，会根据from的类型进行不同的操作。
+主流流程如下图所示，会根据from的类型进行不同的操作。例如针对表Join，要在Where条件后追加别名；针对三张表及以上的Join，要支持递归操作；针对包含子查询的Join，只要把行级权限条件追加到子查询中即可。
 ![Rewrite the main process of SQL.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/Rewrite%20the%20main%20process%20of%20SQL.png)
 #### 3.2.2 核心源码
 
