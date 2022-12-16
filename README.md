@@ -91,10 +91,44 @@ SELECT * FROM orders;
 ### 3.2 重写SQL
 主要在org.apache.calcite.sql.SqlSelect的构造方法中完成。
 #### 3.2.1 主要流程
-主流流程如下图所示，会根据from的类型进行不同的操作。例如针对表Join，要在Where条件后追加别名；针对三张表及以上的Join，要支持递归操作；针对包含子查询的Join，只要把行级权限条件追加到子查询中即可。
+主流流程如下图所示，会根据from的类型进行不同的操作，例如针对表Join，要在Where条件后追加别名；针对三张表及以上的Join，要支持递归操作；针对包含子查询的Join，只要把行级权限条件追加到子查询中即可，在下面的**用例测试**章节会详细说明。然后再获取行级权限解析后生成SqlBacicCall类型的Permissions，并给Permissions增加别名，最后把已有Where和Permission进行组装生成新的Where，来作为SqlSelect对象的Where约束。
 ![Rewrite the main process of SQL.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/Rewrite%20the%20main%20process%20of%20SQL.png)
 #### 3.2.2 核心源码
+核心源码位于SqlSelect中新增的addCondition、addPermission、buildWhereClause三个方法，下面只给出控制主流程addCondition的源码。
 
+```java
+/**
+ * Support recursive processing, such as join for three tables
+ */
+private SqlNode addCondition(SqlNode from, SqlNode where, boolean fromJoin) {
+    if (from instanceof SqlIdentifier) {
+        String tableName = from.toString();
+        // the table name is used as an alias for join
+        String tableAlias = fromJoin ? tableName : null;
+        return addPermission(where, tableName, tableAlias);
+    } else if (from instanceof SqlJoin) {
+        SqlJoin sqlJoin = (SqlJoin) from;
+        // process left sqlNode
+        where = addCondition(sqlJoin.getLeft(), where, true);
+        // process right sqlNode
+        return addCondition(sqlJoin.getRight(), where, true);
+    } else if (from instanceof SqlBasicCall) {
+        // Table has an alias or comes from a subquery
+        SqlNode[] tableNodes = ((SqlBasicCall) from).getOperands();
+        /**
+         * If there is a subquery in the Join, row-level filtering has been appended to the subquery.
+         * What is returned here is the SqlSelect type, just return the original where directly
+         */
+        if (!(tableNodes[0] instanceof SqlIdentifier)) {
+            return where;
+        }
+        String tableName = tableNodes[0].toString();
+        String tableAlias = tableNodes[1].toString();
+        return addPermission(where, tableName, tableAlias);
+    }
+    return where;
+}
+```
 
 ## 四、用例测试
 
