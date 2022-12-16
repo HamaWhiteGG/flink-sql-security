@@ -269,8 +269,8 @@ SELECT * FROM orders WHERE (price > 45.0 OR customer_name = 'John') AND region =
 | 序号 |  用户名 | 表名 | 行级权限条件 | 
 | --- | --- | --- | --- | 
 | 1 | 用户A | orders | region = 'beijing' | 
-| 1 | 用户A | products | name = 'hammer' | 
-| 1 | 用户A | shipments | is_arrived = false | 
+| 2 | 用户A | products | name = 'hammer' | 
+| 3 | 用户A | shipments | is_arrived = false | 
 ##### 4.3.3.2 输入SQL
 ```sql
 SELECT
