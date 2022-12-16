@@ -15,7 +15,7 @@ import org.junit.Test;
  * @version: 1.0.0
  * @date: 2022/12/14 6:00 PM
  */
-//@Ignore
+@Ignore
 public class ExecuteTest extends AbstractBasicTest {
 
 

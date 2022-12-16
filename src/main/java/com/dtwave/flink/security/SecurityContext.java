@@ -99,6 +99,7 @@ public class SecurityContext {
      * Execute the single sql without user permissions
      */
     public TableResult execute(String singleSql) {
+        LOG.info("Execute single sql: {}", singleSql);
         return tableEnv.executeSql(singleSql);
     }
 

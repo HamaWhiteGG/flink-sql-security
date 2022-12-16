@@ -140,7 +140,7 @@ public class ParserTest extends AbstractBasicTest {
      */
     @Test
     public void testJoinSubQueryWhere() {
-        String inputSql = "SELECT o.*, p.name, p.description FROM (SELECT * FROM orders WHERE order_status = false) AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.price > 45.0 OR o.customer_name = 'John'";
+        String inputSql = "SELECT o.*, p.name, p.description FROM (SELECT * FROM orders WHERE order_status = FALSE) AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.price > 45.0 OR o.customer_name = 'John'";
         String expected = "SELECT o.*, p.name, p.description FROM (SELECT * FROM orders WHERE order_status = FALSE AND region = 'beijing') AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.price > 45.0 OR o.customer_name = 'John'";
         testRowFilter(FIRST_USER, inputSql, expected);
     }
