@@ -357,7 +357,6 @@ public TableResult execute(String username, String singleSql) {
     return tableEnv.executeSql(singleSql);
 }
 ```
-
 ## 五、源码修改步骤
 > 注: Flink版本1.16.0依赖的Calcite是1.26.0版本。
 ### 5.1 新增Parser和ParserImpl类
