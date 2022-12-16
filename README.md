@@ -246,15 +246,30 @@ SELECT * FROM orders
 SELECT * FROM orders WHERE region = 'beijing'
 ```
 ##### 4.3.1.4 测试小结
-原本SQL中没有WHERE条件，只需要把行级过滤条件region = 'beijing'追加到WHERE后即可。
+输入SQL中没有WHERE条件，只需要把行级过滤条件region = 'beijing'追加到WHERE后即可。
 
-#### 4.3.2 SELECT带WHERE约束
+#### 4.3.2 SELECT带复杂WHERE约束
 ##### 4.3.2.1 行级权限条件
+| 序号 |  用户名 | 表名 | 行级权限条件 | 
+| --- | --- | --- | --- | 
+| 1 | 用户A | orders | region = 'beijing' | 
 ##### 4.3.2.2 输入SQL
+```sql
+SELECT * FROM orders WHERE price > 45.0 OR customer_name = 'John'
+```
 ##### 4.3.2.3 输出SQL
+```sql
+SELECT * FROM orders WHERE (price > 45.0 OR customer_name = 'John') AND region = 'beijing'
+```
 ##### 4.3.2.4 测试小结
+输入SQL中有两个约束条件，中间用的是OR，因此在组装region = 'beijing'时，要给已有的price > 45.0 OR customer_name = 'John'增加括号。
 
 #### 4.3.3 三表JOIN
+| 序号 |  用户名 | 表名 | 行级权限条件 | 
+| --- | --- | --- | --- | 
+| 1 | 用户A | orders | region = 'beijing' | 
+| 1 | 用户A | products | name = 'hammer' | 
+| 1 | 用户A | shipments | is_arrived = false | 
 ##### 4.3.3.1 行级权限条件
 ##### 4.3.3.2 输入SQL
 ##### 4.3.3.3 输出SQL
