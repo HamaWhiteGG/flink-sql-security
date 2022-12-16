@@ -322,7 +322,7 @@ INSERT INTO print_sink SELECT * FROM (SELECT * FROM orders)
 INSERT INTO print_sink (SELECT * FROM (SELECT * FROM orders WHERE region = 'beijing'))
 ```
 ##### 4.3.4.4 测试小结
-无论SQL类型时INSERT、SELECT或者其他，只会找到查询orders表的子句，然后对其组装行级权限条件。
+无论SQL类型是INSERT、SELECT或者其他，只会找到查询orders表的子句，然后对其组装行级权限条件。
 
 #### 4.3.5 运行SQL
 测试两个不同用户执行相同的SQL，两个用户的行级权限条件不一样。
