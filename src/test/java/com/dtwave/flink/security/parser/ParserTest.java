@@ -170,7 +170,7 @@ public class ParserTest extends AbstractBasicTest {
     public void testThreeJoin() {
         // add permission
         context.getRowLevelPermissions().put(FIRST_USER, PRODUCTS_TABLE, "name = 'hammer'");
-        context.getRowLevelPermissions().put(FIRST_USER, SHIPMENTS_TABLE, "is_arrived = false");
+        context.getRowLevelPermissions().put(FIRST_USER, SHIPMENTS_TABLE, "is_arrived = FALSE");
 
         String inputSql = "SELECT o.*, p.name, p.description, s.shipment_id, s.origin, s.destination, s.is_arrived FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id LEFT JOIN shipments AS s ON o.order_id = s.order_id";
         String expected = "SELECT o.*, p.name, p.description, s.shipment_id, s.origin, s.destination, s.is_arrived FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id LEFT JOIN shipments AS s ON o.order_id = s.order_id WHERE o.region = 'beijing' AND p.name = 'hammer' AND s.is_arrived = FALSE";
