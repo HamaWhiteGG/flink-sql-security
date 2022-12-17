@@ -93,13 +93,16 @@ SELECT * FROM orders;
 ### 3.2 重写SQL
 主要在org.apache.calcite.sql.SqlSelect的构造方法中完成。
 #### 3.2.1 主要流程
-主流程如下图所示，根据From的类型进行不同的操作，例如针对SqlJoin类型，要分别遍历其left和right节点，而且要支持递归操作以便支持三张表及以上JOIN；针对SqlIdentifier类型，要额外判断下是否来自JOIN，如果是的话且
-
-，在下面的**用例测试**章节会举例说明。
+主流程如下图所示，根据From的类型进行不同的操作，例如针对SqlJoin类型，要分别遍历其left和right节点，而且要支持递归操作以便支持三张表及以上JOIN；针对SqlIdentifier类型，要额外判断下是否来自JOIN，如果是的话且JOIN时且未定义表别名，则用表名作为别名；针对SqlBasicCall类型，如果来自于子查询，说明已在子查询中组装过行级权限条件，则直接返回当前Where即可，否则分别取出表名和别名。
 
 然后再获取行级权限条件解析后生成SqlBacicCall类型的Permissions，并给Permissions增加别名，最后把已有Where和Permissions进行组装生成新的Where，来作为SqlSelect对象的Where约束。
 
 ![Rewrite the main process of SQL.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/Rewrite%20the%20main%20process%20of%20SQL.png)
+
+
+上述流程图的各个分支，都会在下面的**用例测试**章节中会举例说明。
+
+
 #### 3.2.2 核心源码
 核心源码位于SqlSelect中新增的`addCondition()`、`addPermission()`、`buildWhereClause()`三个方法，下面只给出控制主流程`addCondition()`的源码。
 
