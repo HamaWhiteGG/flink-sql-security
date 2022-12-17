@@ -28,7 +28,7 @@ FlinkSQL的行级权限解决方案及源码，支持面向个人级别的行级
 
 
 #### 1.2.2 用户查询数据
-用户在系统上查询orders表数据时，系统在底层查询数据时会根据用户的行级权限条件来过滤数据，即让行级权限自动生效。
+用户在系统上查询orders表的数据时，系统在底层查询时会根据该用户的行级权限条件来自动过滤数据，即让行级权限生效。
 
 当用户A和用户B均执行下述SQL时，
 
@@ -36,21 +36,21 @@ FlinkSQL的行级权限解决方案及源码，支持面向个人级别的行级
 SELECT * FROM orders;
 ```
 
-**用户A查看到的结果数据**:
+**用户A查看到的结果数据是**:
 | order_id |  order_date | customer_name | price |  product_id |  order_status |  region | 
 | --- | --- | --- | --- |  --- |  --- |  --- | 
 | 10001 | 2020-07-30 10:08:22 | Jack | 50.50 | 102 | false | beijing |
 | 10002 | 2020-07-30 10:11:09 | Sally | 15.00 | 105 | false | beijing | 
-> 注: 系统底层执行的最终SQL是: SELECT * FROM orders WHERE region = 'beijing' 。 
+> 注: 系统底层最终执行的SQL是: `SELECT * FROM orders WHERE region = 'beijing'`。 
 
 <br/>
 
-**用户B查看到的结果数据**:
+**用户B查看到的结果数据是**:
 | order_id |  order_date | customer_name | price |  product_id |  order_status |  region |  
 | --- | --- | --- | --- |  --- |  --- |  --- | 
 | 10003 | 2020-07-30 12:00:30 | Edward | 25.25 | 106 | false | hangzhou | 
 | 10004 | 2022-12-15 12:11:09 | John | 78.00 | 103 | false | hangzhou | 
-> 注: 系统底层执行的最终SQL是: SELECT * FROM orders WHERE region = 'hangzhou' 。 
+> 注: 系统底层最终执行的SQL是: `SELECT * FROM orders WHERE region = 'hangzhou'` 。 
 
 
 ### 1.3 组件版本
@@ -60,21 +60,23 @@ SELECT * FROM orders;
 | Flink-connector-mysql-cdc | 2.3.0 |  |
 
 ## 二、Hive行级权限解决方案
-在离线数仓工具Hive领域，由于发展多年，已经有Ranger来支持表数据的行级权限控制，详见参考文献[[2]](https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.0/authorization-ranger/content/row_level_filtering_in_hive_with_ranger_policies.html)。下图是在Ranger里配置Hive表行级过滤条件的页面，供参考。
+在离线数仓工具Hive领域，由于发展多年已有Ranger来支持表数据的行级权限控制，详见参考文献[[2]](https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.0/authorization-ranger/content/row_level_filtering_in_hive_with_ranger_policies.html)。下图是在Ranger里配置Hive表行级过滤条件的页面，供参考。
 ![Hive-Ranger row level filter.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/Hive-Ranger%20row%20level%20filter.png)
 
 <br/>
 
-由于Flink实时数仓领域发展相对较短，Ranger还不支持FlinkSQL以及依赖Ranger过重，因此开始**自研实时数仓的行级权限解决工具**。
+但由于Flink实时数仓领域发展相对较短，Ranger还不支持FlinkSQL，以及要依赖Ranger会导致系统部署和运维过重，因此开始**自研实时数仓的行级权限解决工具**。
 
 ## 三、FlinkSQL行级权限解决方案
 ### 3.1 解决方案
 #### 3.1.1 FlinkSQL执行流程
-可以参考作者文章[[FlinkSQL字段血缘解决方案及源码]](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)，下面根据Flink1.16修正和简化后的执行流程如下图所示。
+可以参考作者文章[[FlinkSQL字段血缘解决方案及源码]](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)，本文根据Flink1.16修正和简化后的执行流程如下图所示。
 ![FlinkSQL simple-execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20simple-execution%20flowchart.png)
 
+在CalciteParser.parse()处理后会得到一个SqlNode类型的`Abstract Syntax Tree`，本文会在Parse阶段通过增加来实现行级权限
+
 #### 3.1.2 Calcite对象继承关系
-下节要用到Calcite中的SqlNode、SqlBacicCall、SqlSelect、SqlCall、SqlIdentifier、SqlJoin等类，此处展示下它们间的关系。
+下面章节要用到Calcite中的SqlNode、SqlBacicCall、SqlSelect、SqlCall、SqlIdentifier、SqlJoin等类，此处展示下它们间的关系以便于阅读源码。
 ![Calcite SqlNode diagrams.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/Calcite%20SqlNode%20diagrams.png)
 
 #### 3.1.3 解决思路
