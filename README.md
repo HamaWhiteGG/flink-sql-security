@@ -15,7 +15,7 @@ FlinkSQL的行级权限解决方案及源码，支持面向用户级别的行级
 
 ## 一、基础知识
 ### 1.1 行级权限
-行级权限即横向数据安全保护，可以解决不同人员只允许访问不同数据行的问题。例如针对订单表，用户A只能查看到北京区域的数据，用户B只能杭州区域的数据。
+行级权限即横向数据安全保护，可以解决不同人员只允许访问不同数据行的问题。例如针对订单表，**用户A**只能查看到**北京**区域的数据，**用户B**只能查看到**杭州**区域的数据。
 ![Row level permissions.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/Row%20level%20permissions.png)
 
 ### 1.2 业务流程
@@ -30,7 +30,7 @@ FlinkSQL的行级权限解决方案及源码，支持面向用户级别的行级
 #### 1.2.2 用户查询数据
 用户在系统上查询orders表的数据时，系统在底层查询时会根据该用户的行级权限条件来自动过滤数据，即让行级权限生效。
 
-当用户A和用户B在执行下面相同的SQL时，
+当用户A和用户B在执行下面相同的SQL时，会查看到不同的结果数据。
 
 ```sql
 SELECT * FROM orders;
@@ -459,4 +459,3 @@ public TableResult execute(String username, String singleSql) {
 4. [PostgreSQL中的行级权限/数据权限/行安全策略](https://www.kankanzhijian.com/2018/09/28/PostgreSQL-rowsecurity/)
 5. [FlinkSQL字段血缘解决方案及源码](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)
 6. [基于 Flink CDC 构建 MySQL 和 Postgres 的 Streaming ETL](https://ververica.github.io/flink-cdc-connectors/master/content/%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B/mysql-postgres-tutorial-zh.html)
-
