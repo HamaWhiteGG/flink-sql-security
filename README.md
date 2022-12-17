@@ -137,7 +137,11 @@ private SqlNode addCondition(SqlNode from, SqlNode where, boolean fromJoin) {
 
 ## 四、用例测试
 用例测试数据来自于CDC Connectors for Apache Flink
-[[6]](https://ververica.github.io/flink-cdc-connectors/master/content/%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B/mysql-postgres-tutorial-zh.html)官网，在此表示感谢。
+[[6]](https://ververica.github.io/flink-cdc-connectors/master/content/%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B/mysql-postgres-tutorial-zh.html)官网，在此表示感谢。下载本文源码后，可通过Maven运行单元测试。
+```shell
+$ cd flink-sql-security
+$ mvn test
+```
 
 ### 4.1 新建Mysql表及初始化数据
 Mysql新建表语句及初始化数据SQL详见源码[[flink-sql-security/data/database]](https://github.com/HamaWhiteGG/flink-sql-security/tree/main/data/database)里面的mysql_ddl.sql和mysql_init.sql文件，本文给`orders`表增加一个region字段。
@@ -233,11 +237,7 @@ CREATE TABLE IF NOT EXISTS print_sink (
 ```
 
 ### 4.3 测试用例
-详细测试用例可查看源码中的单测，下面只描述部分测试点。下载本文源码后，可通过Maven运行单元测试。
-```shell
-$ cd flink-sql-security
-$ mvn test
-```
+详细测试用例可查看源码中的单测，下面只描述部分测试点。
 
 #### 4.3.1 简单SELECT
 ##### 4.3.1.1 行级权限条件
