@@ -93,7 +93,9 @@ SELECT * FROM orders;
 ### 3.2 重写SQL
 主要在org.apache.calcite.sql.SqlSelect的构造方法中完成。
 #### 3.2.1 主要流程
-主流程如下图所示，根据From的类型进行不同的操作，例如针对表Join，要在Where条件后追加别名；针对三张表及以上的Join，要支持递归操作，在下面的**用例测试**章节会举例说明。
+主流程如下图所示，根据From的类型进行不同的操作，例如针对SqlJoin类型，要分别遍历其left和right节点，而且要支持递归操作以便支持三张表及以上JOIN；针对SqlIdentifier类型，要额外判断下是否来自JOIN，如果是的话且
+
+，在下面的**用例测试**章节会举例说明。
 
 然后再获取行级权限条件解析后生成SqlBacicCall类型的Permissions，并给Permissions增加别名，最后把已有Where和Permissions进行组装生成新的Where，来作为SqlSelect对象的Where约束。
 
@@ -306,7 +308,7 @@ WHERE o.price > 45.0
         OR o.customer_name = 'John' 
 ```
 ##### 4.3.3.4 测试小结
-针对比较复杂的SQL，例如两表在JOIN时且其中左表来自于子查询`SELECT * FROM orders WHERE order_status = FALSE`，行级过滤条件只会追加到子查询的里面。
+针对比较复杂的SQL，例如两表在JOIN时且其中左表来自于子查询`SELECT * FROM orders WHERE order_status = FALSE`，行级过滤条件`region = 'beijing'`只会追加到子查询的里面。
 
 
 #### 4.3.4 三表JOIN
@@ -315,7 +317,7 @@ WHERE o.price > 45.0
 | --- | --- | --- | --- | 
 | 1 | 用户A | orders | region = 'beijing' | 
 | 2 | 用户A | products | name = 'hammer' | 
-| 3 | 用户A | shipments | is_arrived = false | 
+| 3 | 用户A | shipments | is_arrived = FALSE | 
 ##### 4.3.4.2 输入SQL
 ```sql
 SELECT
@@ -351,7 +353,7 @@ WHERE
   AND s.is_arrived=FALSE;
 ```
 ##### 4.3.4.4 测试小结
-三张表进行JOIN时，会分别获取`orders`、`products`、`shipments`三张表的行级权限条件，然后增加`orders`表的别名o、`products`表的别名p、`shipments`表的别名s，最后组装到WHERE子句后面。
+三张表进行JOIN时，会分别获取`orders`、`products`、`shipments`三张表的行级权限条件: `region = 'beijing'`、`name = 'hammer'`和`is_arrived = FALSE`，然后增加`orders`表的别名o、`products`表的别名p、`shipments`表的别名s，最后组装到WHERE子句后面。
 
 #### 4.3.5 INSERT来自带子查询的SELECT
 ##### 4.3.5.1 行级权限条件
