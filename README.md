@@ -76,7 +76,17 @@ SELECT * FROM orders;
 在CalciteParser.parse()处理后会得到一个SqlNode类型的`Abstract Syntax Tree`，本文会在Parse阶段，通过组装行级过滤条件生成新的AST来实现行级权限控制。
 
 #### 3.1.2 Calcite对象继承关系
-下面章节要用到Calcite中的SqlNode、SqlBacicCall、SqlSelect、SqlCall、SqlIdentifier、SqlJoin等类，此处展示下它们间的关系以便于阅读源码。
+下面章节要用到Calcite中的SqlNode、SqlCall、SqlIdentifier、SqlJoin、SqlBasicCall和SqlSelect等类，此处进行简单介绍以及展示它们间继承关系，以便读者阅读本文源码。
+
+| 序号 | 类 | 介绍 |
+| --- | --- | --- |
+| 1 | SqlNode | A SqlNode is a SQL parse tree. |
+| 2 | SqlCall | A SqlCall is a call to an SqlOperator operator. |
+| 3 | SqlIdentifier | A SqlIdentifier is an identifier, possibly compound. |
+| 4 | SqlJoin | Parse tree node representing a JOIN clause. |
+| 5 | SqlBasicCall | Implementation of SqlCall that keeps its operands in an array. |
+| 6 | SqlSelect | A SqlSelect is a node of a parse tree which represents a select statement. |
+
 ![Calcite SqlNode diagrams.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/Calcite%20SqlNode%20diagrams.png)
 
 #### 3.1.3 解决思路
