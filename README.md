@@ -81,25 +81,25 @@ SELECT * FROM orders;
 
 #### 3.1.3 解决思路
 
-在Parser阶段，如果执行的SQL包含对表的查询操作，则一定会构建Calcite SqlSelect对象。因此限制表的行级权限，只要在Calcite SqlSelect对象构建Where条件进行拦截即可，而不需要根据用户执行的各种SQL来解析查找带行级权限条件约束的表。
+在Parser阶段，如果执行的SQL包含对表的查询操作，则一定会构建Calcite SqlSelect对象。因此限制表的行级权限，只要在构建Calcite SqlSelect对象时对Where条件进行拦截即可，而不需要解析用户执行的各种SQL来查找配置过行级权限条件约束的表。
 
 
-在SqlSelect对象构造Where条件时，系统通过执行用户和表名查找配置的行级权限条件，并会把此条件经过CalciteParser提供的parseExpression(String sqlExpression)方法解析生成一个SqlBacicCall返回。然后结合用户执行SQL和配置的行级权限条件重新组装Where条件，即生成新的带行级过滤条件Abstract Syntax Tree，最后基于新的AST再执行后续的Validate、Convert和Execute阶段。
+在SqlSelect对象构造Where条件时，要通过执行用户和表名来查找配置的行级权限条件，系统会把此条件用CalciteParser提供的parseExpression(String sqlExpression)方法解析生成一个SqlBacicCall再返回。然后结合用户执行的SQL和配置的行级权限条件重新组装Where条件，即生成新的带行级过滤条件Abstract Syntax Tree，最后基于新的AST再执行后续的Validate、Convert、Optimize和Execute阶段。
 ![FlinkSQL row-level permissions solution.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20row-level%20permissions%20solution.png)
 
-以上整个过程对执行SQL都是透明和无感知的，用户还是调用Flink自带的TableEnvironment.executeSql(String statement)方法即可。
+以上整个过程对执行SQL的用户都是透明和无感知的，还是调用Flink自带的TableEnvironment.executeSql(String statement)方法即可。
 > 注: 要通过技术手段把执行用户传递到Calcite SqlSelect中。
 
 ### 3.2 重写SQL
 主要在org.apache.calcite.sql.SqlSelect的构造方法中完成。
 #### 3.2.1 主要流程
-主流流程如下图所示，会根据from的类型进行不同的操作，例如针对表Join，要在Where条件后追加别名；针对三张表及以上的Join，要支持递归操作，在下面的**用例测试**章节会举例说明。
+主流程如下图所示，根据From的类型进行不同的操作，例如针对表Join，要在Where条件后追加别名；针对三张表及以上的Join，要支持递归操作，在下面的**用例测试**章节会举例说明。
 
-然后再获取行级权限解析后生成SqlBacicCall类型的Permissions，并给Permissions增加别名，最后把已有Where和Permission进行组装生成新的Where，来作为SqlSelect对象的Where约束。
+然后再获取行级权限条件解析后生成SqlBacicCall类型的Permissions，并给Permissions增加别名，最后把已有Where和Permissions进行组装生成新的Where，来作为SqlSelect对象的Where约束。
 
 ![Rewrite the main process of SQL.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/Rewrite%20the%20main%20process%20of%20SQL.png)
 #### 3.2.2 核心源码
-核心源码位于SqlSelect中新增的addCondition、addPermission、buildWhereClause三个方法，下面只给出控制主流程addCondition的源码。
+核心源码位于SqlSelect中新增的`addCondition`、`addPermission`、`buildWhereClause`三个方法，下面只给出控制主流程`addCondition`的源码。
 
 ```java
 /**
@@ -136,11 +136,12 @@ private SqlNode addCondition(SqlNode from, SqlNode where, boolean fromJoin) {
 ```
 
 ## 四、用例测试
-用例测试数据源自于CDC Connectors for Apache Flink
+用例测试数据来自于CDC Connectors for Apache Flink
 [[6]](https://ververica.github.io/flink-cdc-connectors/master/content/%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B/mysql-postgres-tutorial-zh.html)官网，在此表示感谢。
 
 ### 4.1 新建Mysql表及初始化数据
-Mysql新建表语句及初始化数据SQL详见源码[[flink-sql-security/data/database]](https://github.com/HamaWhiteGG/flink-sql-security/tree/main/data/database)里面的mysql_ddl.sql和mysql_init.sql文件。
+Mysql新建表语句及初始化数据SQL详见源码[[flink-sql-security/data/database]](https://github.com/HamaWhiteGG/flink-sql-security/tree/main/data/database)里面的mysql_ddl.sql和mysql_init.sql文件，本文给`orders`表增加一个region字段。
+
 
 ### 4.2 新建Flink表
 
@@ -187,7 +188,7 @@ CREATE TABLE IF NOT EXISTS products (
     'server-time-zone'='Asia/Shanghai',
     'database-name'='demo',
     'table-name'='products'
-)
+);
 ```
 
 #### 4.2.3 新建mysql cdc类型shipments表
@@ -210,7 +211,7 @@ CREATE TABLE IF NOT EXISTS shipments (
     'server-time-zone'='Asia/Shanghai',
     'database-name'='demo',
     'table-name'='shipments'
-)
+);
 ```
 
 #### 4.2.4 新建print类型print_sink表
@@ -228,7 +229,7 @@ CREATE TABLE IF NOT EXISTS print_sink (
     region STRING
 ) WITH (
     'connector'='print'
-)
+);
 ```
 
 ### 4.3 测试用例
@@ -241,14 +242,14 @@ CREATE TABLE IF NOT EXISTS print_sink (
 | 1 | 用户A | orders | region = 'beijing' | 
 ##### 4.3.1.2 输入SQL
 ```sql
-SELECT * FROM orders
+SELECT * FROM orders;
 ```
 ##### 4.3.1.3 输出SQL
 ```sql
-SELECT * FROM orders WHERE region = 'beijing'
+SELECT * FROM orders WHERE region = 'beijing';
 ```
 ##### 4.3.1.4 测试小结
-输入SQL中没有WHERE条件，只需要把行级过滤条件region = 'beijing'追加到WHERE后即可。
+输入SQL中没有WHERE条件，只需要把行级过滤条件`region = 'beijing'`追加到WHERE后即可。
 
 #### 4.3.2 SELECT带复杂WHERE约束
 ##### 4.3.2.1 行级权限条件
@@ -257,14 +258,14 @@ SELECT * FROM orders WHERE region = 'beijing'
 | 1 | 用户A | orders | region = 'beijing' | 
 ##### 4.3.2.2 输入SQL
 ```sql
-SELECT * FROM orders WHERE price > 45.0 OR customer_name = 'John'
+SELECT * FROM orders WHERE price > 45.0 OR customer_name = 'John';
 ```
 ##### 4.3.2.3 输出SQL
 ```sql
-SELECT * FROM orders WHERE (price > 45.0 OR customer_name = 'John') AND region = 'beijing'
+SELECT * FROM orders WHERE (price > 45.0 OR customer_name = 'John') AND region = 'beijing';
 ```
 ##### 4.3.2.4 测试小结
-输入SQL中有两个约束条件，中间用的是OR，因此在组装region = 'beijing'时，要给已有的price > 45.0 OR customer_name = 'John'增加括号。
+输入SQL中有两个约束条件，中间用的是OR，因此在组装`region = 'beijing'`时，要给已有的`price > 45.0 OR customer_name = 'John'`增加括号。
 
 #### 4.3.3 三表JOIN
 ##### 4.3.3.1 行级权限条件
@@ -286,7 +287,7 @@ SELECT
 FROM
   orders AS o
   LEFT JOIN products AS p ON o.product_id=p.id
-  LEFT JOIN shipments AS s ON o.order_id=s.order_id
+  LEFT JOIN shipments AS s ON o.order_id=s.order_id;
 ```
 ##### 4.3.3.3 输出SQL
 ```sql
@@ -305,7 +306,7 @@ FROM
 WHERE
   o.region='beijing'
   AND p.name='hammer'
-  AND s.is_arrived=FALSE
+  AND s.is_arrived=FALSE;
 ```
 ##### 4.3.3.4 测试小结
 三张表JOIN，会分别获取每张表的行级权限条件，然后拼接对应的表别名，最后组装到WHERE子句后面。
@@ -317,11 +318,11 @@ WHERE
 | 1 | 用户A | orders | region = 'beijing' | 
 ##### 4.3.4.2 输入SQL
 ```sql
-INSERT INTO print_sink SELECT * FROM (SELECT * FROM orders)
+INSERT INTO print_sink SELECT * FROM (SELECT * FROM orders);
 ```
 ##### 4.3.4.3 输出SQL
 ```sql
-INSERT INTO print_sink (SELECT * FROM (SELECT * FROM orders WHERE region = 'beijing'))
+INSERT INTO print_sink (SELECT * FROM (SELECT * FROM orders WHERE region = 'beijing'));
 ```
 ##### 4.3.4.4 测试小结
 无论SQL类型是INSERT、SELECT或者其他，只会找到查询orders表的子句，然后对其组装行级权限条件。
@@ -341,12 +342,12 @@ SELECT * FROM orders
 ##### 4.3.5.3 执行SQL
 用户A的真实执行SQL:
 ```sql
-SELECT * FROM orders WHERE region = 'beijing'
+SELECT * FROM orders WHERE region = 'beijing';
 ```
 
 用户B的真实执行SQL:
 ```sql 
-SELECT * FROM orders WHERE region = 'hangzhou'
+SELECT * FROM orders WHERE region = 'hangzhou';
 ```
 ##### 4.3.5.4 测试小结
 用户调用下面的执行方法，除传递要执行的SQL参数外，只需要额外指定执行的用户即可，便能自动按照行级权限过滤来执行。
@@ -384,8 +385,8 @@ SqlNode parseExpression(String sqlExpression);
 SqlNode parseSql(String statement);
 ```
 ### 5.2 新增SqlSelect类
-复制Calcite源码中的org.apache.calcite.sql.SqlSelect到项目下，新增上文提到的addCondition、addPermission、buildWhereClause三个方法。
-并且在构造方法中注释掉原有的this.where = where行，并添加如下代码:
+复制Calcite源码中的org.apache.calcite.sql.SqlSelect到项目下，新增上文提到的`addCondition`、`addPermission`、`buildWhereClause`三个方法。
+并且在构造方法中注释掉原有的`this.where = where`行，并添加如下代码:
 ```java
 // add row level filter condition for where clause
 SqlNode rowFilterWhere = addCondition(from, where, false);
