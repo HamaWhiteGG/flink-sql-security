@@ -294,32 +294,39 @@ SELECT * FROM orders WHERE (price > 45.0 OR customer_name = 'John') AND region =
 | 1 | 用户A | orders | region = 'beijing' | 
 ##### 4.3.3.2 输入SQL
 ```sql
-SELECT o.*,
-         p.name,
-         p.description
+SELECT
+    o.*,
+    p.name,
+    p.description
 FROM 
-    (SELECT *
-    FROM orders
-    WHERE order_status = FALSE) AS o
-LEFT JOIN products AS p
-    ON o.product_id = p.id
-WHERE o.price > 45.0
-        OR o.customer_name = 'John' 
+    (SELECT
+        *
+     FROM 
+        orders
+     WHERE 
+        order_status = FALSE
+    ) AS o
+LEFT JOIN products AS p ON o.product_id = p.id
+WHERE
+    o.price > 45.0 OR o.customer_name = 'John' 
 ```
 ##### 4.3.3.3 输出SQL
 ```sql
-SELECT o.*,
-         p.name,
-         p.description
+SELECT
+    o.*,
+    p.name,
+    p.description
 FROM 
-    (SELECT *
-    FROM orders
-    WHERE order_status = FALSE
-            AND region = 'beijing') AS o
-LEFT JOIN products AS p
-    ON o.product_id = p.id
-WHERE o.price > 45.0
-        OR o.customer_name = 'John' 
+    (SELECT
+        *
+     FROM 
+        orders
+     WHERE 
+        order_status = FALSE AND region = 'beijing'
+    ) AS o
+LEFT JOIN products AS p ON o.product_id = p.id
+WHERE
+    o.price > 45.0 OR o.customer_name = 'John' 
 ```
 ##### 4.3.3.4 测试小结
 针对比较复杂的SQL，例如两表在JOIN时且其中左表来自于子查询`SELECT * FROM orders WHERE order_status = FALSE`，行级过滤条件`region = 'beijing'`只会追加到子查询的里面。
