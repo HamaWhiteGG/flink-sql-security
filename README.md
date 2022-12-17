@@ -84,7 +84,7 @@ SELECT * FROM orders;
 在Parser阶段，如果执行的SQL包含对表的查询操作，则一定会构建Calcite SqlSelect对象。因此限制表的行级权限，只要在构建Calcite SqlSelect对象时对Where条件进行拦截即可，而不需要解析用户执行的各种SQL来查找配置过行级权限条件约束的表。
 
 
-在SqlSelect对象构造Where条件时，要通过执行用户和表名来查找配置的行级权限条件，系统会把此条件用CalciteParser提供的parseExpression(String sqlExpression)方法解析生成一个SqlBacicCall再返回。然后结合用户执行的SQL和配置的行级权限条件重新组装Where条件，即生成新的带行级过滤条件Abstract Syntax Tree，最后基于新的AST再执行后续的Validate、Convert、Optimize和Execute阶段。
+在SqlSelect对象构造Where条件时，要通过执行用户和表名来查找配置的行级权限条件，系统会把此条件用CalciteParser提供的`parseExpression(String sqlExpression)`方法解析生成一个SqlBacicCall再返回。然后结合用户执行的SQL和配置的行级权限条件重新组装Where条件，即生成新的带行级过滤条件Abstract Syntax Tree，最后基于新的AST再执行后续的Validate、Convert、Optimize和Execute阶段。
 ![FlinkSQL row-level permissions solution.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20row-level%20permissions%20solution.png)
 
 以上整个过程对执行SQL的用户都是透明和无感知的，还是调用Flink自带的TableEnvironment.executeSql(String statement)方法即可。
@@ -233,7 +233,11 @@ CREATE TABLE IF NOT EXISTS print_sink (
 ```
 
 ### 4.3 测试用例
-详细测试用例可查看源码中的单测，下面只描述部分测试点。
+详细测试用例可查看源码中的单测，下面只描述部分测试点。下载本文源码后，可通过Maven运行单元测试。
+```shell
+$ cd flink-sql-security
+$ mvn test
+```
 
 #### 4.3.1 简单SELECT
 ##### 4.3.1.1 行级权限条件
@@ -309,7 +313,7 @@ WHERE
   AND s.is_arrived=FALSE;
 ```
 ##### 4.3.3.4 测试小结
-三张表JOIN，会分别获取每张表的行级权限条件，然后拼接对应的表别名，最后组装到WHERE子句后面。
+三张表进行JOIN时，会分别获取`orders`、`products`、`shipments`三张表的行级权限条件，然后增加`orders`表的别名o、`products`表的别名p、`shipments`表的别名s，最后组装到WHERE子句后面。
 
 #### 4.3.4 INSERT来自带子查询的SELECT
 ##### 4.3.4.1 行级权限条件
@@ -325,7 +329,7 @@ INSERT INTO print_sink SELECT * FROM (SELECT * FROM orders);
 INSERT INTO print_sink (SELECT * FROM (SELECT * FROM orders WHERE region = 'beijing'));
 ```
 ##### 4.3.4.4 测试小结
-无论SQL类型是INSERT、SELECT或者其他，只会找到查询orders表的子句，然后对其组装行级权限条件。
+无论运行SQL类型是INSERT、SELECT或者其他，只会找到查询`oders`表的子句，然后对其组装行级权限条件。
 
 #### 4.3.5 运行SQL
 测试两个不同用户执行相同的SQL，两个用户的行级权限条件不一样。
@@ -337,7 +341,7 @@ INSERT INTO print_sink (SELECT * FROM (SELECT * FROM orders WHERE region = 'beij
 
 ##### 4.3.5.2 输入SQL
 ```sql
-SELECT * FROM orders
+SELECT * FROM orders;
 ```
 ##### 4.3.5.3 执行SQL
 用户A的真实执行SQL:
@@ -350,7 +354,7 @@ SELECT * FROM orders WHERE region = 'beijing';
 SELECT * FROM orders WHERE region = 'hangzhou';
 ```
 ##### 4.3.5.4 测试小结
-用户调用下面的执行方法，除传递要执行的SQL参数外，只需要额外指定执行的用户即可，便能自动按照行级权限过滤来执行。
+用户调用下面的执行方法，除传递要执行的SQL参数外，只需要额外指定执行的用户即可，便能自动按照行级权限限制来执行。
 ```java
 /**
  * Execute the single sql with user permissions
@@ -398,7 +402,7 @@ public SqlNode parseSql(String statement) {
 }
 ```
 ### 5.2 新增SqlSelect类
-复制Calcite源码中的org.apache.calcite.sql.SqlSelect到项目下，新增上文提到的`addCondition`、`addPermission`、`buildWhereClause`三个方法。
+复制Calcite源码中的org.apache.calcite.sql.SqlSelect到项目下，新增上文提到的`addCondition()`、`addPermission()`、`buildWhereClause()`三个方法。
 并且在构造方法中注释掉原有的`this.where = where`行，并添加如下代码:
 ```java
 // add row level filter condition for where clause
@@ -449,8 +453,8 @@ public TableResult execute(String username, String singleSql) {
 ```
 
 ## 六、下一步计划
-1. 开发ranger-flink-plugin
-2. 自定义Flink语法来配置行级策略
+1. 支持数据脱敏(Data Masking)
+2. 开发ranger-flink-plugin
 
 ## 七、参考文献
 1. [数据管理DMS-敏感数据管理-行级管控](https://help.aliyun.com/document_detail/161149.html)
