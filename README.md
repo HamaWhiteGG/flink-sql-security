@@ -271,14 +271,52 @@ SELECT * FROM orders WHERE (price > 45.0 OR customer_name = 'John') AND region =
 ##### 4.3.2.4 测试小结
 输入SQL中有两个约束条件，中间用的是OR，因此在组装`region = 'beijing'`时，要给已有的`price > 45.0 OR customer_name = 'John'`增加括号。
 
-#### 4.3.3 三表JOIN
+#### 4.3.3 两表JOIN且含子查询
 ##### 4.3.3.1 行级权限条件
+| 序号 |  用户名 | 表名 | 行级权限条件 | 
+| --- | --- | --- | --- | 
+| 1 | 用户A | orders | region = 'beijing' | 
+##### 4.3.3.2 输入SQL
+```sql
+SELECT o.*,
+         p.name,
+         p.description
+FROM 
+    (SELECT *
+    FROM orders
+    WHERE order_status = FALSE) AS o
+LEFT JOIN products AS p
+    ON o.product_id = p.id
+WHERE o.price > 45.0
+        OR o.customer_name = 'John' 
+```
+##### 4.3.3.3 输出SQL
+```sql
+SELECT o.*,
+         p.name,
+         p.description
+FROM 
+    (SELECT *
+    FROM orders
+    WHERE order_status = FALSE
+            AND region = 'beijing') AS o
+LEFT JOIN products AS p
+    ON o.product_id = p.id
+WHERE o.price > 45.0
+        OR o.customer_name = 'John' 
+```
+##### 4.3.3.4 测试小结
+针对比较复杂的SQL，例如两表在JOIN时且其中左表来自于子查询`SELECT * FROM orders WHERE order_status = FALSE`，行级过滤条件只会追加到子查询的里面。
+
+
+#### 4.3.4 三表JOIN
+##### 4.3.4.1 行级权限条件
 | 序号 |  用户名 | 表名 | 行级权限条件 | 
 | --- | --- | --- | --- | 
 | 1 | 用户A | orders | region = 'beijing' | 
 | 2 | 用户A | products | name = 'hammer' | 
 | 3 | 用户A | shipments | is_arrived = false | 
-##### 4.3.3.2 输入SQL
+##### 4.3.4.2 输入SQL
 ```sql
 SELECT
   o.*,
@@ -293,7 +331,7 @@ FROM
   LEFT JOIN products AS p ON o.product_id=p.id
   LEFT JOIN shipments AS s ON o.order_id=s.order_id;
 ```
-##### 4.3.3.3 输出SQL
+##### 4.3.4.3 输出SQL
 ```sql
 SELECT
   o.*,
@@ -312,38 +350,38 @@ WHERE
   AND p.name='hammer'
   AND s.is_arrived=FALSE;
 ```
-##### 4.3.3.4 测试小结
+##### 4.3.4.4 测试小结
 三张表进行JOIN时，会分别获取`orders`、`products`、`shipments`三张表的行级权限条件，然后增加`orders`表的别名o、`products`表的别名p、`shipments`表的别名s，最后组装到WHERE子句后面。
 
-#### 4.3.4 INSERT来自带子查询的SELECT
-##### 4.3.4.1 行级权限条件
+#### 4.3.5 INSERT来自带子查询的SELECT
+##### 4.3.5.1 行级权限条件
 | 序号 |  用户名 | 表名 | 行级权限条件 | 
 | --- | --- | --- | --- | 
 | 1 | 用户A | orders | region = 'beijing' | 
-##### 4.3.4.2 输入SQL
+##### 4.3.5.2 输入SQL
 ```sql
 INSERT INTO print_sink SELECT * FROM (SELECT * FROM orders);
 ```
-##### 4.3.4.3 输出SQL
+##### 4.3.5.3 输出SQL
 ```sql
 INSERT INTO print_sink (SELECT * FROM (SELECT * FROM orders WHERE region = 'beijing'));
 ```
-##### 4.3.4.4 测试小结
+##### 4.3.5.4 测试小结
 无论运行SQL类型是INSERT、SELECT或者其他，只会找到查询`oders`表的子句，然后对其组装行级权限条件。
 
-#### 4.3.5 运行SQL
+#### 4.3.6 运行SQL
 测试两个不同用户执行相同的SQL，两个用户的行级权限条件不一样。
-##### 4.3.5.1 行级权限条件
+##### 4.3.6.1 行级权限条件
 | 序号 |  用户名 | 表名 | 行级权限条件 | 
 | --- | --- | --- | --- | 
 | 1 | 用户A | orders | region = 'beijing' | 
 | 2 | 用户B | orders | region = 'hangzhou' | 
 
-##### 4.3.5.2 输入SQL
+##### 4.3.6.2 输入SQL
 ```sql
 SELECT * FROM orders;
 ```
-##### 4.3.5.3 执行SQL
+##### 4.3.6.3 执行SQL
 用户A的真实执行SQL:
 ```sql
 SELECT * FROM orders WHERE region = 'beijing';
@@ -353,7 +391,7 @@ SELECT * FROM orders WHERE region = 'beijing';
 ```sql 
 SELECT * FROM orders WHERE region = 'hangzhou';
 ```
-##### 4.3.5.4 测试小结
+##### 4.3.6.4 测试小结
 用户调用下面的执行方法，除传递要执行的SQL参数外，只需要额外指定执行的用户即可，便能自动按照行级权限限制来执行。
 ```java
 /**
