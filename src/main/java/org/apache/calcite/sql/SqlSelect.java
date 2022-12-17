@@ -99,7 +99,7 @@ public class SqlSelect extends SqlCall {
 
 
     /**
-     * Support recursive processing, such as join for three tables
+     * The main process of controlling row-level permissions
      */
     private SqlNode addCondition(SqlNode from, SqlNode where, boolean fromJoin) {
         if (from instanceof SqlIdentifier) {
@@ -109,7 +109,7 @@ public class SqlSelect extends SqlCall {
             return addPermission(where, tableName, tableAlias);
         } else if (from instanceof SqlJoin) {
             SqlJoin sqlJoin = (SqlJoin) from;
-            // process left sqlNode
+            // support recursive processing, such as join for three tables, process left sqlNode
             where = addCondition(sqlJoin.getLeft(), where, true);
             // process right sqlNode
             return addCondition(sqlJoin.getRight(), where, true);
