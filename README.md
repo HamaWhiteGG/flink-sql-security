@@ -372,7 +372,11 @@ public TableResult execute(String username, String singleSql) {
  * @return a parsed SQL node
  * @throws SqlParserException if an exception is thrown when parsing the statement
  */
-SqlNode parseExpression(String sqlExpression);
+@Override
+public SqlNode parseExpression(String sqlExpression) {
+    CalciteParser parser = calciteParserSupplier.get();
+    return parser.parseExpression(sqlExpression);
+}
 
 
 /**
@@ -382,7 +386,16 @@ SqlNode parseExpression(String sqlExpression);
  * @return abstract syntax tree
  * @throws org.apache.flink.table.api.SqlParserException when failed to parse the statement
  */
-SqlNode parseSql(String statement);
+@Override
+public SqlNode parseSql(String statement) {
+    CalciteParser parser = calciteParserSupplier.get();
+
+    // use parseSqlList here because we need to support statement end with ';' in sql client.
+    SqlNodeList sqlNodeList = parser.parseSqlList(statement);
+    List<SqlNode> parsed = sqlNodeList.getList();
+    Preconditions.checkArgument(parsed.size() == 1, "only single statement supported");
+    return parsed.get(0);
+}
 ```
 ### 5.2 新增SqlSelect类
 复制Calcite源码中的org.apache.calcite.sql.SqlSelect到项目下，新增上文提到的`addCondition`、`addPermission`、`buildWhereClause`三个方法。
