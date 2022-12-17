@@ -99,11 +99,11 @@ SELECT * FROM orders;
 
 ![Rewrite the main process of SQL.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/Rewrite%20the%20main%20process%20of%20SQL.png)
 #### 3.2.2 核心源码
-核心源码位于SqlSelect中新增的`addCondition`、`addPermission`、`buildWhereClause`三个方法，下面只给出控制主流程`addCondition`的源码。
+核心源码位于SqlSelect中新增的`addCondition()`、`addPermission()`、`buildWhereClause()`三个方法，下面只给出控制主流程`addCondition()`的源码。
 
 ```java
 /**
- * Support recursive processing, such as join for three tables
+ * The main process of controlling row-level permissions
  */
 private SqlNode addCondition(SqlNode from, SqlNode where, boolean fromJoin) {
     if (from instanceof SqlIdentifier) {
@@ -113,7 +113,7 @@ private SqlNode addCondition(SqlNode from, SqlNode where, boolean fromJoin) {
         return addPermission(where, tableName, tableAlias);
     } else if (from instanceof SqlJoin) {
         SqlJoin sqlJoin = (SqlJoin) from;
-        // process left sqlNode
+        // support recursive processing, such as join for three tables, process left sqlNode
         where = addCondition(sqlJoin.getLeft(), where, true);
         // process right sqlNode
         return addCondition(sqlJoin.getRight(), where, true);
