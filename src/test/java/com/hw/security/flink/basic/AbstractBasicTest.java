@@ -13,16 +13,12 @@ public abstract class AbstractBasicTest {
 
     protected static final SecurityContext context = SecurityContext.getInstance();
 
-    // user A
     protected static final String FIRST_USER = "hamawhite";
-    // user B
     protected static final String SECOND_USER = "song.bs";
-
 
     protected static final String ORDERS_TABLE = "orders";
     protected static final String PRODUCTS_TABLE = "products";
     protected static final String SHIPMENTS_TABLE = "shipments";
-
 
     public AbstractBasicTest() {
         // set row level permissions
@@ -31,7 +27,6 @@ public abstract class AbstractBasicTest {
         rowLevelPermissions.put(SECOND_USER, ORDERS_TABLE, "region = 'hangzhou'");
         context.setRowLevelPermissions(rowLevelPermissions);
     }
-
 
     /**
      * Create mysql cdc table products
@@ -55,7 +50,6 @@ public abstract class AbstractBasicTest {
                 ")"
         );
     }
-
 
     /**
      * Create mysql cdc table orders
@@ -105,7 +99,6 @@ public abstract class AbstractBasicTest {
         );
     }
 
-
     /**
      * Create mysql cdc table shipments
      */
@@ -130,5 +123,4 @@ public abstract class AbstractBasicTest {
                 ")"
         );
     }
-
 }

@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import javax.annotation.Nonnull;
 
@@ -133,10 +134,11 @@ public class SqlSelect extends SqlCall {
      */
     private SqlNode addPermission(SqlNode where, String tableName, String tableAlias) {
         String username = System.getProperty(EXECUTE_USERNAME);
-        SqlBasicCall permissions = SecurityContext.getInstance().queryPermissions(username, tableName);
+        Optional<SqlBasicCall> permissionsOptional = SecurityContext.getInstance().queryPermissions(username, tableName);
 
         // add an alias
-        if (permissions != null && tableAlias != null) {
+        if (permissionsOptional.isPresent() && tableAlias != null) {
+            SqlBasicCall permissions = permissionsOptional.get();
             ImmutableList<String> namesList = ImmutableList.of(tableAlias, permissions.getOperands()[0].toString());
             permissions.getOperands()[0] = new SqlIdentifier(namesList
                     , null
@@ -145,16 +147,16 @@ public class SqlSelect extends SqlCall {
             );
         }
 
-        return buildWhereClause(where, permissions);
+        return buildWhereClause(where, permissionsOptional);
     }
 
     /**
      * Rebuild the where clause
      */
-    private SqlNode buildWhereClause(SqlNode where, SqlBasicCall permissions) {
-        if (permissions != null) {
+    private SqlNode buildWhereClause(SqlNode where, Optional<SqlBasicCall> permissionsOptional) {
+        if (permissionsOptional.isPresent()) {
             if (where == null) {
-                return permissions;
+                return permissionsOptional.get();
             }
             SqlBinaryOperator sqlBinaryOperator = new SqlBinaryOperator(SqlKind.AND.name()
                     , SqlKind.AND
@@ -166,7 +168,7 @@ public class SqlSelect extends SqlCall {
             );
             SqlNode[] operands = new SqlNode[2];
             operands[0] = where;
-            operands[1] = permissions;
+            operands[1] = permissionsOptional.get();
             SqlParserPos sqlParserPos = new SqlParserPos(0, 0);
             return new SqlBasicCall(sqlBinaryOperator, operands, sqlParserPos);
         }
