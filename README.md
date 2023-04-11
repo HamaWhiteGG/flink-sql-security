@@ -1,6 +1,6 @@
 # flink-sql-security
 
-FlinkSQL的行级权限解决方案及源码，支持面向用户级别的行级数据访问控制，即特定用户只能访问授权过的行，隐藏未授权的行数据。此方案是实时领域Flink的解决方案，类似离线数仓Hive中Ranger Row-level Filter方案。
+FlinkSQL的行级权限解决方案及源码，支持面向用户级别的行级数据访问控制，即特定用户只能访问授权过的行，隐藏未授权的行数据。此方案是实时领域Flink的解决方案，类似于离线数仓Hive中Ranger Row-level Filter方案。
 
 <br/>
 
@@ -18,7 +18,9 @@ FlinkSQL的行级权限解决方案及源码，支持面向用户级别的行级
 
 ## 一、基础知识
 ### 1.1 行级权限
-行级权限即横向数据安全保护，可以解决不同人员只允许访问不同数据行的问题。例如针对订单表，**用户A**只能查看到**北京**区域的数据，**用户B**只能查看到**杭州**区域的数据。
+行级权限即横向数据安全保护，可以解决不同人员只允许访问不同数据行的问题。
+
+例如针对订单表，**用户A**只能查看到**北京**区域的数据，**用户B**只能查看到**杭州**区域的数据。
 ![Row level permissions.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/Row%20level%20permissions.png)
 
 ### 1.2 业务流程
@@ -77,7 +79,7 @@ SELECT * FROM orders;
 可以参考作者文章[[FlinkSQL字段血缘解决方案及源码]](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)，本文根据Flink1.16修正和简化后的执行流程如下图所示。
 ![FlinkSQL simple-execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20simple-execution%20flowchart.png)
 
-在`CalciteParser.parse()`处理后会得到一个SqlNode类型的抽象语法树(`Abstract Syntax Tree`，简称AST)，本文会针对此抽象语法树来组装行级过滤条件生成新的AST，以实现行级权限控制。
+在`CalciteParser.parse()`处理后会得到一个SqlNode类型的抽象语法树(`Abstract Syntax Tree`，简称AST)，本文会针对此抽象语法树来组装行级过滤条件后生成新的AST，以实现行级权限控制。
 
 #### 3.1.2 Calcite对象继承关系
 下面章节要用到Calcite中的SqlNode、SqlCall、SqlIdentifier、SqlJoin、SqlBasicCall和SqlSelect等类，此处进行简单介绍以及展示它们间继承关系，以便读者阅读本文源码。
@@ -89,21 +91,19 @@ SELECT * FROM orders;
 | 3 | SqlIdentifier | A SqlIdentifier is an identifier, possibly compound. |
 | 4 | SqlJoin | Parse tree node representing a JOIN clause. |
 | 5 | SqlBasicCall | Implementation of SqlCall that keeps its operands in an array. |
-| 6 | SqlSelect | A SqlSelect is a node of a parse tree which represents a select statement, note the parent class is SqlCall |
+| 6 | SqlSelect | A SqlSelect is a node of a parse tree which represents a select statement, the parent class is SqlCall |
 
 ![Calcite SqlNode diagrams.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/Calcite%20SqlNode%20diagrams.png)
 
 #### 3.1.3 解决思路
 
-如果执行的SQL包含对表的查询操作，则一定会构建Calcite SqlSelect对象。因此限制表的行级权限，只要对Calcite SqlSelect对象的Where条件进行修改即可，而不需要解析用户执行的各种SQL来查找配置过行级权限条件约束的表。
-
-在抽象语法树构造出SqlSelect对象后，通过Calcite提供的访问者模式自定义visitor来重新生成新的SqlSelect Where条件。
+如果执行的SQL包含对表的查询操作，则一定会构建Calcite SqlSelect对象。因此限制表的行级权限，只要对Calcite SqlSelect对象的Where条件进行修改即可，而不需要解析用户执行的各种SQL来查找配置过行级权限条件约束的表。在抽象语法树构造出SqlSelect对象后，通过Calcite提供的访问者模式自定义visitor来重新生成新的SqlSelect Where条件。
 
 首先通过执行用户和表名来查找配置的行级权限条件，系统会把此条件用CalciteParser提供的`parseExpression(String sqlExpression)`方法解析生成一个SqlBacicCall再返回。然后结合用户执行的SQL和配置的行级权限条件重新组装Where条件，即生成新的带行级过滤条件Abstract Syntax Tree，最后基于新AST(即新SQL)再执行。
 ![FlinkSQL row-level permissions solution.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20row-level%20permissions%20solution.png)
 
 ### 3.2 重写SQL
-主要通过Calcite提供的访问者模式自定义RowFilterVisitor来实现，遍历SqlSelect对象重新生成Where子句。
+主要通过Calcite提供的访问者模式自定义RowFilterVisitor来实现，遍历AST中所有的SqlSelect对象重新生成Where子句。
 
 #### 3.2.1 主要流程
 主流程如下图所示，根据From的类型进行不同的操作，例如针对SqlJoin类型，要分别遍历其left和right节点，而且要支持递归操作以便支持三张表及以上JOIN；针对SqlIdentifier类型，要额外判断下是否来自JOIN，如果是的话且JOIN时且未定义表别名，则用表名作为别名；针对SqlBasicCall类型，如果来自于子查询，说明已在子查询中组装过行级权限条件，则直接返回当前Where即可，否则分别取出表名和别名。
@@ -432,8 +432,8 @@ public TableResult execute(String username, String singleSql) {
 > 注: Flink版本1.16依赖的Calcite是1.26.0版本。
 ### 5.1 用[manifold-ext](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-ext) 扩展Flink ParserImpl类
 
-新建包extensions.org.apache.flink.table.planner.delegation.ParserImpl，注意extensions后面的包名称要等于Flink源码中ParserImpl类的包名.类名。
-然后新建ParserImplExtension类来给ParserImpl类扩展parseExpression(String sqlExpression)和parseSql(String)两个方法。
+新建包`extensions.org.apache.flink.table.planner.delegation.ParserImpl`，注意extensions后面的包名称要等于Flink源码中ParserImpl类的包名.类名。
+然后新建`ParserImplExtension`类来给`ParserImpl`类扩展`parseExpression(String sqlExpression)`和`parseSql(String)`两个方法。
 
 ```java
 package extensions.org.apache.flink.table.planner.delegation.ParserImpl;
@@ -481,7 +481,7 @@ public class ParserImplExtension {
 ```
 
 ### 5.2 新增RowFilterVisitor类
-新增上文提到的`visit(SqlCall call)`、`addCondition()`、`addPermission()`、`buildWhereClause()`四个方法，`visit(SqlCall call)`方法如下，其他详见源码。
+新增上文提到的`addCondition()`、`addPermission()`、`buildWhereClause()`方法，同时新增`visit(SqlCall call)`方法来遍历AST中所有的SqlSelect对象重新生成Where子句。`visit`方法如下，其他详见源码。
 ```java
 @Override
 public Void visit(SqlCall call) {
@@ -560,3 +560,5 @@ public TableResult execute(String username, String singleSql) {
 4. [PostgreSQL中的行级权限/数据权限/行安全策略](https://www.kankanzhijian.com/2018/09/28/PostgreSQL-rowsecurity/)
 5. [FlinkSQL字段血缘解决方案及源码](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)
 6. [基于 Flink CDC 构建 MySQL 和 Postgres 的 Streaming ETL](https://ververica.github.io/flink-cdc-connectors/master/content/%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B/mysql-postgres-tutorial-zh.html)
+7. [重新认识访问者模式：从实践到本质](https://www.51cto.com/article/703150.html)
+8. [github-manifold-systems/manifold](https://github.com/manifold-systems/manifold)
