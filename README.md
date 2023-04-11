@@ -432,7 +432,7 @@ public TableResult execute(String username, String singleSql) {
 > 注: Flink版本1.16依赖的Calcite是1.26.0版本。
 ### 5.1 用[manifold-ext](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-ext) 扩展Flink ParserImpl类
 
-新建包`extensions.org.apache.flink.table.planner.delegation.ParserImpl`，注意extensions后面的包名称要等于Flink源码中ParserImpl类的包名.类名。
+新建包`extensions.org.apache.flink.table.planner.delegation.ParserImpl`，注意extensions后面的包名称要等于Flink源码中ParserImpl类的`包名.类名`。
 然后新建`ParserImplExtension`类来给`ParserImpl`类扩展`parseExpression(String sqlExpression)`和`parseSql(String)`两个方法。
 
 ```java
@@ -481,7 +481,7 @@ public class ParserImplExtension {
 ```
 
 ### 5.2 新增RowFilterVisitor类
-新增上文提到的`addCondition()`、`addPermission()`、`buildWhereClause()`方法，同时新增`visit(SqlCall call)`方法来遍历AST中所有的SqlSelect对象重新生成Where子句。`visit`方法如下，其他详见源码。
+新增上文提到的`addCondition()`、`addPermission()`、`buildWhereClause()`方法，同时新增`visit(SqlCall call)`方法来遍历AST中所有的SqlSelect对象来重新生成Where子句。`visit`方法如下，其他详见源码。
 ```java
 @Override
 public Void visit(SqlCall call) {
