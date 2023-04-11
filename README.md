@@ -7,7 +7,7 @@ FlinkSQL的行级权限解决方案及源码，支持面向用户级别的行级
 | 序号 | 作者 | 版本 | 时间 | 备注 |
 | --- | --- | --- | --- | --- |
 | 1 | HamaWhite | 1.0.0 | 2022-12-15 | 1. 增加文档和源码 |
-| 1 | HamaWhite | 1.0.1 | 2023-04-11 | 1. 通过 [manifold-ext](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-ext) 扩展Flink ParserImpl类的方法</br> 2. 用calcite visitor来实现行级权限，而不是修改SqlSelect源码</br> 3. 添加行级权限前，对AST进行validate |
+| 1 | HamaWhite | 1.0.1 | 2023-04-11 | 1. 通过 [manifold-ext](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-ext) 扩展Flink ParserImpl类的方法</br> 2. 用calcite visitor来实现行级权限，而不是修改SqlSelect源码</br> 3. 添加行级权限前，对解析后的AST进行校验(validate) |
 
 
 </br>
@@ -77,7 +77,7 @@ SELECT * FROM orders;
 可以参考作者文章[[FlinkSQL字段血缘解决方案及源码]](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)，本文根据Flink1.16修正和简化后的执行流程如下图所示。
 ![FlinkSQL simple-execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20simple-execution%20flowchart.png)
 
-在CalciteParser.parse()处理后会得到一个SqlNode类型的抽象语法树(`Abstract Syntax Tree`，简称AST)，本文会在Parse阶段，通过组装行级过滤条件生成新的AST来实现行级权限控制。
+在`CalciteParser.parse()`处理后会得到一个SqlNode类型的抽象语法树(`Abstract Syntax Tree`，简称AST)，然后经过`FlinkPlannerImpl.validate()`对AST进行语法校验得到的仍是SqlNode类型，本文会针对校验后的SqlNode来组装行级过滤条件生成新的SqlNode，以实现行级权限控制。
 
 #### 3.1.2 Calcite对象继承关系
 下面章节要用到Calcite中的SqlNode、SqlCall、SqlIdentifier、SqlJoin、SqlBasicCall和SqlSelect等类，此处进行简单介绍以及展示它们间继承关系，以便读者阅读本文源码。
@@ -95,17 +95,15 @@ SELECT * FROM orders;
 
 #### 3.1.3 解决思路
 
-在Parser阶段，如果执行的SQL包含对表的查询操作，则一定会构建Calcite SqlSelect对象。因此限制表的行级权限，只要在构建Calcite SqlSelect对象时对Where条件进行拦截即可，而不需要解析用户执行的各种SQL来查找配置过行级权限条件约束的表。
+如果执行的SQL包含对表的查询操作，则一定会构建Calcite SqlSelect对象。因此限制表的行级权限，只要对Calcite SqlSelect对象的Where条件进行修改即可，而不需要解析用户执行的各种SQL来查找配置过行级权限条件约束的表。
 
 
-在SqlSelect对象构造Where条件时，要通过执行用户和表名来查找配置的行级权限条件，系统会把此条件用CalciteParser提供的`parseExpression(String sqlExpression)`方法解析生成一个SqlBacicCall再返回。然后结合用户执行的SQL和配置的行级权限条件重新组装Where条件，即生成新的带行级过滤条件Abstract Syntax Tree，最后基于新的AST再执行后续的Validate、Convert、Optimize和Execute阶段。
+在SqlSelect对象构造Where条件后，通过Calcite提供的访问者模式自定义visitor来重新生成新的Where条件。首先通过执行用户和表名来查找配置的行级权限条件，系统会把此条件用CalciteParser提供的`parseExpression(String sqlExpression)`方法解析生成一个SqlBacicCall再返回。然后结合用户执行的SQL和配置的行级权限条件重新组装Where条件，即生成新的带行级过滤条件Abstract Syntax Tree，最后基于新的AST生成新SQL，再执行新的SQL即可。
 ![FlinkSQL row-level permissions solution.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20row-level%20permissions%20solution.png)
 
-以上整个过程对执行SQL的用户都是透明和无感知的，还是调用Flink自带的TableEnvironment.executeSql(String statement)方法即可。
-> 注: 要通过技术手段把执行用户传递到Calcite SqlSelect中。
-
 ### 3.2 重写SQL
-主要在org.apache.calcite.sql.SqlSelect的构造方法中完成。
+主要通过Calcite提供的访问者模式自定义RowFilterVisitor来实现。
+
 #### 3.2.1 主要流程
 主流程如下图所示，根据From的类型进行不同的操作，例如针对SqlJoin类型，要分别遍历其left和right节点，而且要支持递归操作以便支持三张表及以上JOIN；针对SqlIdentifier类型，要额外判断下是否来自JOIN，如果是的话且JOIN时且未定义表别名，则用表名作为别名；针对SqlBasicCall类型，如果来自于子查询，说明已在子查询中组装过行级权限条件，则直接返回当前Where即可，否则分别取出表名和别名。
 
@@ -118,7 +116,7 @@ SELECT * FROM orders;
 
 
 #### 3.2.2 核心源码
-核心源码位于SqlSelect中新增的`addCondition()`、`addPermission()`、`buildWhereClause()`三个方法，下面只给出控制主流程`addCondition()`的源码。
+核心源码位于RowFilterVisitor中新增的`addCondition()`、`addPermission()`、`buildWhereClause()`四个方法，下面只给出核心控制主流程`addCondition()`的源码。
 
 ```java
 /**
@@ -481,35 +479,46 @@ public class ParserImplExtension {
 
 ```
 
-### 5.2 新增SqlSelect类
-复制Calcite源码中的org.apache.calcite.sql.SqlSelect到项目下，新增上文提到的`addCondition()`、`addPermission()`、`buildWhereClause()`三个方法。
-并且在构造方法中注释掉原有的`this.where = where`行，并添加如下代码:
+### 5.2 新增RowFilterVisitor类
+新增上文提到的`visit(SqlCall call)`、`addCondition()`、`addPermission()`、`buildWhereClause()`四个方法，`visit(SqlCall call)`方法如下，其他详见源码。
 ```java
-// add row level filter condition for where clause
-SqlNode rowFilterWhere = addCondition(from, where, false);
-if (rowFilterWhere != where) {
-    LOG.info("Rewritten SQL based on row-level privilege filtering for user [{}]", System.getProperty(EXECUTE_USERNAME));
+@Override
+public Void visit(SqlCall call) {
+    if (call instanceof SqlSelect) {
+        SqlSelect sqlSelect = (SqlSelect) call;
+
+        SqlNode originWhere = sqlSelect.getWhere();
+        // add row level filter condition for where clause
+        SqlNode rowFilterWhere = addCondition(sqlSelect.getFrom(), originWhere, false);
+        if (rowFilterWhere != originWhere) {
+            LOG.info("Rewritten SQL based on row-level privilege filtering for user [{}]", username);
+        }
+        sqlSelect.setWhere(rowFilterWhere);
+    }
+    return super.visit(call);
 }
-this.where = rowFilterWhere;
 ```
 
 ### 5.3 封装SecurityContext类
 新建SecurityContext类，主要添加下面三个方法:
 ```java
 
+// init parser
 ParserImpl parser = (ParserImpl) tableEnv.getParser();
  
 /**
  * Add row-level filter conditions and return new SQL
  */
 public String addRowFilter(String username, String singleSql) {
-    System.setProperty(Constant.EXECUTE_USERNAME, username);
+    // parsing sql queries and return the abstract syntax tree
+    SqlNode sqlNode = parser.parseSql(singleSql);
 
-    // in the modified SqlSelect, filter conditions will be added to the where clause
-    SqlNode parsedTree = parser.parseSql(singleSql);
-    return parsedTree.toString();
+    // add row-level filtering based on user-configured permission points
+    RowFilterVisitor visitor = new RowFilterVisitor(this, username);
+    sqlNode.accept(visitor);
+
+    return sqlNode.toString();
 }
-
 
 /**
  * Query the configured permission point according to the username and table name, and return
@@ -519,6 +528,7 @@ public Optional<SqlBasicCall> queryPermissions(String username, String tableName
     String permissions = rowLevelPermissions.get(username, tableName);
     LOG.info("username: {}, tableName: {}, permissions: {}", username, tableName, permissions);
     if (permissions != null) {
+        // parses a sql expression into a SqlNode.
         return Optional.of((SqlBasicCall) parser.parseExpression(permissions));
     }
     return Optional.empty();
@@ -529,8 +539,11 @@ public Optional<SqlBasicCall> queryPermissions(String username, String tableName
  * Execute the single sql with user permissions
  */
 public TableResult execute(String username, String singleSql) {
-    System.setProperty(EXECUTE_USERNAME, username);
-    return tableEnv.executeSql(singleSql);
+    LOG.info("origin sql: {}", singleSql);
+    String rowFilterSql = addRowFilter(username, singleSql);
+    LOG.info("row filter sql: {}", rowFilterSql);
+
+    return tableEnv.executeSql(rowFilterSql);
 }
 
 ```
