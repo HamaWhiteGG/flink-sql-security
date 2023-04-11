@@ -1,6 +1,6 @@
-package com.dtwave.flink.security.parser;
+package com.hw.security.flink.parser;
 
-import com.dtwave.flink.security.basic.AbstractBasicTest;
+import com.hw.security.flink.basic.AbstractBasicTest;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -11,9 +11,7 @@ import static org.junit.Assert.assertEquals;
 
 /**
  * @description: Rewrite SQL based on row-level filter conditions
- * @author: baisong
- * @version: 1.0.0
- * @date: 2022/12/10 12:24 PM
+ * @author: HamaWhite
  */
 public class ParserTest extends AbstractBasicTest {
 
@@ -136,7 +134,7 @@ public class ParserTest extends AbstractBasicTest {
 
 
     /**
-     * The products and orders two tables are left joined, and the left table comes from a subquery
+     * The products and orders two tables are left joined, and the left table comes from a sub-query
      */
     @Test
     public void testJoinSubQueryWhere() {
@@ -185,7 +183,6 @@ public class ParserTest extends AbstractBasicTest {
 
     /**
      * insert-select.
-     *
      * insert into print table from mysql cdc stream table.
      */
     @Test
@@ -200,7 +197,6 @@ public class ParserTest extends AbstractBasicTest {
 
     /**
      * insert-select-select.
-     *
      * insert into print table from mysql cdc stream table.
      */
     @Test
