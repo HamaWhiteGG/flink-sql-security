@@ -35,11 +35,11 @@ public class SecurityContext {
     public SecurityContext(Table<String, String, String> rowLevelPermissions) {
         this.rowLevelPermissions = rowLevelPermissions;
         // init table environment
-        initTableEnv();
+        initTableEnvironment();
         this.parser = (ParserImpl) tableEnv.getParser();
     }
 
-    private void initTableEnv() {
+    private void initTableEnvironment() {
         Configuration configuration = new Configuration();
 
         int port = generatePort();
@@ -64,7 +64,7 @@ public class SecurityContext {
      * Add row-level filter conditions and return new SQL
      */
     public String addRowFilter(String username, String singleSql) {
-        // parsing sql queries and return the abstract syntax tree
+        // parsing sql and return the abstract syntax tree
         SqlNode sqlNode = parser.parseSql(singleSql);
 
         // add row-level filtering based on user-configured permission points
