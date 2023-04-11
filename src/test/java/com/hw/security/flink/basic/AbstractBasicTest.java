@@ -2,7 +2,6 @@ package com.hw.security.flink.basic;
 
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
-
 import com.hw.security.flink.SecurityContext;
 
 /**
@@ -11,8 +10,6 @@ import com.hw.security.flink.SecurityContext;
  */
 public abstract class AbstractBasicTest {
 
-    protected static final SecurityContext context = SecurityContext.getInstance();
-
     protected static final String FIRST_USER = "hamawhite";
     protected static final String SECOND_USER = "song.bs";
 
@@ -20,12 +17,14 @@ public abstract class AbstractBasicTest {
     protected static final String PRODUCTS_TABLE = "products";
     protected static final String SHIPMENTS_TABLE = "shipments";
 
-    public AbstractBasicTest() {
+    protected static SecurityContext context;
+
+    static {
         // set row level permissions
         Table<String, String, String> rowLevelPermissions = HashBasedTable.create();
         rowLevelPermissions.put(FIRST_USER, ORDERS_TABLE, "region = 'beijing'");
         rowLevelPermissions.put(SECOND_USER, ORDERS_TABLE, "region = 'hangzhou'");
-        context.setRowLevelPermissions(rowLevelPermissions);
+        context = new SecurityContext(rowLevelPermissions);
     }
 
     /**

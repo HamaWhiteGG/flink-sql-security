@@ -1,7 +1,6 @@
 package com.hw.security.flink.execute;
 
 import com.hw.security.flink.basic.AbstractBasicTest;
-
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -15,7 +14,6 @@ import org.junit.Test;
  */
 @Ignore
 public class ExecuteTest extends AbstractBasicTest {
-
 
     @BeforeClass
     public static void init() {
