@@ -2,7 +2,6 @@ package com.hw.security.flink;
 
 import com.hw.security.flink.execute.ExecuteTest;
 import com.hw.security.flink.parser.ParserTest;
-
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
