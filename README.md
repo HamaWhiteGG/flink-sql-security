@@ -7,7 +7,7 @@ FlinkSQL的行级权限解决方案及源码，支持面向用户级别的行级
 | 序号 | 作者 | 版本 | 时间 | 备注 |
 | --- | --- | --- | --- | --- |
 | 1 | HamaWhite | 1.0.0 | 2022-12-15 | 1. 增加文档和源码 |
-| 1 | HamaWhite | 1.0.1 | 2023-04-11 | 1. 通过 [manifold-ext](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-ext#self--extensions) 扩展Flink ParserImpl类的方法 |
+| 1 | HamaWhite | 1.0.1 | 2023-04-11 | 1. 通过 [manifold-ext](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-ext) 扩展Flink ParserImpl类的方法 |
 
 
 </br>
@@ -431,7 +431,7 @@ public TableResult execute(String username, String singleSql) {
 
 ## 五、源码修改步骤
 > 注: Flink版本1.16.0依赖的Calcite是1.26.0版本。
-### 5.1 用[manifold-ext](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-ext#self--extensions) 扩展Flink ParserImpl类
+### 5.1 用[manifold-ext](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-ext) 扩展Flink ParserImpl类
 
 新建包extensions.org.apache.flink.table.planner.delegation.ParserImpl，注意extensions后面的包名称要等于Flink源码中ParserImpl类的包名.类名。
 然后新建ParserImplExtension类来给ParserImpl类扩展parseExpression(String sqlExpression)和parseSql(String)两个方法。
