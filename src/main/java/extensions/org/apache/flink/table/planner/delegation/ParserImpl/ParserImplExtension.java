@@ -13,7 +13,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.List;
 
 /**
- * Extend {@link ParserImpl} with manifold-ext to add new methods.
+ * Extend {@link ParserImpl} with manifold to add method parseExpression(String sqlExpression) and parseSql(String)
  *
  * @author: HamaWhite
  */

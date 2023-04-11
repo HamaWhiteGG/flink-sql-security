@@ -15,6 +15,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.Random;
 
 /**
@@ -40,7 +41,6 @@ public class SecurityContext {
         return singleton;
     }
 
-
     private SecurityContext() {
         Configuration configuration = new Configuration();
         int port = new Random().nextInt((8188 - 8082) + 1) + 8082;
@@ -61,7 +61,6 @@ public class SecurityContext {
         }
     }
 
-
     /**
      * Add row-level filter conditions and return new SQL
      */
@@ -73,20 +72,18 @@ public class SecurityContext {
         return parsedTree.toString();
     }
 
-
     /**
      * Query the configured permission point according to the username and table name, and return
      * it to SqlBasicCall
      */
-    public SqlBasicCall queryPermissions(String username, String tableName) {
+    public Optional<SqlBasicCall> queryPermissions(String username, String tableName) {
         String permissions = rowLevelPermissions.get(username, tableName);
         LOG.info("username: {}, tableName: {}, permissions: {}", username, tableName, permissions);
         if (permissions != null) {
-            return (SqlBasicCall) parser.parseExpression(permissions);
+            return Optional.of((SqlBasicCall) parser.parseExpression(permissions));
         }
-        return null;
+        return Optional.empty();
     }
-
 
     /**
      * Execute the single sql without user permissions
@@ -95,7 +92,6 @@ public class SecurityContext {
         LOG.info("Execute single sql: {}", singleSql);
         return tableEnv.executeSql(singleSql);
     }
-
 
     /**
      * Execute the single sql with user permissions
