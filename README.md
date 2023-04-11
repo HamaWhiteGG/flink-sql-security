@@ -7,7 +7,7 @@ FlinkSQL的行级权限解决方案及源码，支持面向用户级别的行级
 | 序号 | 作者 | 版本 | 时间 | 备注 |
 | --- | --- | --- | --- | --- |
 | 1 | HamaWhite | 1.0.0 | 2022-12-15 | 1. 增加文档和源码 |
-| 1 | HamaWhite | 1.0.1 | 2023-04-11 | 1. 通过 [manifold-ext](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-ext) 扩展Flink ParserImpl类的方法</br> 2. 用自定义calcite visitor来增加行级权限，不再修改SqlSelect源码|
+| 1 | HamaWhite | 1.0.1 | 2023-04-11 | 1. 通过 [manifold-ext](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-ext) 扩展Flink ParserImpl类的方法</br> 2. 自定义calcite visitor来增加行级权限，不再改SqlSelect源码 |
 
 
 </br>
@@ -77,7 +77,7 @@ SELECT * FROM orders;
 可以参考作者文章[[FlinkSQL字段血缘解决方案及源码]](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)，本文根据Flink1.16修正和简化后的执行流程如下图所示。
 ![FlinkSQL simple-execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20simple-execution%20flowchart.png)
 
-在`CalciteParser.parse()`处理后会得到一个SqlNode类型的抽象语法树(`Abstract Syntax Tree`，简称AST)，本文会针对抽象语法树来组装行级过滤条件生成新的AST，以实现行级权限控制。
+在`CalciteParser.parse()`处理后会得到一个SqlNode类型的抽象语法树(`Abstract Syntax Tree`，简称AST)，本文会针对此抽象语法树来组装行级过滤条件生成新的AST，以实现行级权限控制。
 
 #### 3.1.2 Calcite对象继承关系
 下面章节要用到Calcite中的SqlNode、SqlCall、SqlIdentifier、SqlJoin、SqlBasicCall和SqlSelect等类，此处进行简单介绍以及展示它们间继承关系，以便读者阅读本文源码。
@@ -89,7 +89,7 @@ SELECT * FROM orders;
 | 3 | SqlIdentifier | A SqlIdentifier is an identifier, possibly compound. |
 | 4 | SqlJoin | Parse tree node representing a JOIN clause. |
 | 5 | SqlBasicCall | Implementation of SqlCall that keeps its operands in an array. |
-| 6 | SqlSelect | A SqlSelect is a node of a parse tree which represents a select statement. |
+| 6 | SqlSelect | A SqlSelect is a node of a parse tree which represents a select statement, note the parent class is SqlCall |
 
 ![Calcite SqlNode diagrams.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/Calcite%20SqlNode%20diagrams.png)
 
@@ -97,12 +97,13 @@ SELECT * FROM orders;
 
 如果执行的SQL包含对表的查询操作，则一定会构建Calcite SqlSelect对象。因此限制表的行级权限，只要对Calcite SqlSelect对象的Where条件进行修改即可，而不需要解析用户执行的各种SQL来查找配置过行级权限条件约束的表。
 
+在抽象语法树构造出SqlSelect对象后，通过Calcite提供的访问者模式自定义visitor来重新生成新的SqlSelect Where条件。
 
-在SqlSelect对象构造Where条件后，通过Calcite提供的访问者模式自定义visitor来重新生成新的Where条件。首先通过执行用户和表名来查找配置的行级权限条件，系统会把此条件用CalciteParser提供的`parseExpression(String sqlExpression)`方法解析生成一个SqlBacicCall再返回。然后结合用户执行的SQL和配置的行级权限条件重新组装Where条件，即生成新的带行级过滤条件Abstract Syntax Tree，最后基于新AST(即新SQL)再执行。
+首先通过执行用户和表名来查找配置的行级权限条件，系统会把此条件用CalciteParser提供的`parseExpression(String sqlExpression)`方法解析生成一个SqlBacicCall再返回。然后结合用户执行的SQL和配置的行级权限条件重新组装Where条件，即生成新的带行级过滤条件Abstract Syntax Tree，最后基于新AST(即新SQL)再执行。
 ![FlinkSQL row-level permissions solution.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20row-level%20permissions%20solution.png)
 
 ### 3.2 重写SQL
-主要通过Calcite提供的访问者模式自定义RowFilterVisitor来实现。
+主要通过Calcite提供的访问者模式自定义RowFilterVisitor来实现，遍历SqlSelect对象重新生成Where子句。
 
 #### 3.2.1 主要流程
 主流程如下图所示，根据From的类型进行不同的操作，例如针对SqlJoin类型，要分别遍历其left和right节点，而且要支持递归操作以便支持三张表及以上JOIN；针对SqlIdentifier类型，要额外判断下是否来自JOIN，如果是的话且JOIN时且未定义表别名，则用表名作为别名；针对SqlBasicCall类型，如果来自于子查询，说明已在子查询中组装过行级权限条件，则直接返回当前Where即可，否则分别取出表名和别名。
