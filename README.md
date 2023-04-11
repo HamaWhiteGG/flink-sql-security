@@ -7,10 +7,13 @@ FlinkSQL的行级权限解决方案及源码，支持面向用户级别的行级
 | 序号 | 作者 | 版本 | 时间 | 备注 |
 | --- | --- | --- | --- | --- |
 | 1 | HamaWhite | 1.0.0 | 2022-12-15 | 1. 增加文档和源码 |
+| 1 | HamaWhite | 1.0.1 | 2023-04-11 | 1. 通过 [manifold-ext](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-ext#self--extensions) 扩展Flink ParserImpl类的方法 |
 
 
 </br>
-源码地址: https://github.com/HamaWhiteGG/flink-sql-security
+源码地址: https://github.com/HamaWhiteGG/flink-sql-security 
+
+> 注: 如果用IntelliJ IDEA打开源码，请提前安装 **Manifold** 插件。
 
 
 ## 一、基础知识
@@ -425,43 +428,59 @@ public TableResult execute(String username, String singleSql) {
     return tableEnv.executeSql(singleSql);
 }
 ```
+
 ## 五、源码修改步骤
 > 注: Flink版本1.16.0依赖的Calcite是1.26.0版本。
-### 5.1 新增Parser和ParserImpl类
-复制Flink源码中的org.apache.flink.table.delegation.Parser和org.apache.flink.table.planner.delegation.ParserImpl到项目下，新增下面两个方法及实现。
+### 5.1 用[manifold-ext](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-ext#self--extensions) 扩展Flink ParserImpl类
+
+新建包extensions.org.apache.flink.table.planner.delegation.ParserImpl，注意extensions后面的包名称要等于Flink源码中ParserImpl类的包名.类名。
+然后新建ParserImplExtension类来给ParserImpl类扩展parseExpression(String sqlExpression)和parseSql(String)两个方法。
+
 ```java
-/**
- * Parses a SQL expression into a {@link SqlNode}. The {@link SqlNode} is not yet validated.
- *
- * @param sqlExpression a SQL expression string to parse
- * @return a parsed SQL node
- * @throws SqlParserException if an exception is thrown when parsing the statement
- */
-@Override
-public SqlNode parseExpression(String sqlExpression) {
-    CalciteParser parser = calciteParserSupplier.get();
-    return parser.parseExpression(sqlExpression);
+package extensions.org.apache.flink.table.planner.delegation.ParserImpl;
+...
+
+@Extension
+public class ParserImplExtension {
+
+    private ParserImplExtension() {
+        throw new IllegalStateException("Extension class");
+    }
+
+    /**
+     * Parses a SQL expression into a {@link SqlNode}. The {@link SqlNode} is not yet validated.
+     *
+     * @param sqlExpression a SQL expression string to parse
+     * @return a parsed SQL node
+     * @throws SqlParserException if an exception is thrown when parsing the statement
+     */
+    public static SqlNode parseExpression(@This @Jailbreak ParserImpl thiz,String sqlExpression) {
+        // add @Jailbreak annotation to access private variables
+        CalciteParser parser = thiz.calciteParserSupplier.get();
+        return parser.parseExpression(sqlExpression);
+    }
+
+    /**
+     * Entry point for parsing SQL queries and return the abstract syntax tree
+     *
+     * @param statement the SQL statement to evaluate
+     * @return abstract syntax tree
+     * @throws org.apache.flink.table.api.SqlParserException when failed to parse the statement
+     */
+    public static SqlNode parseSql(@This @Jailbreak ParserImpl thiz, String statement) {
+        // add @Jailbreak annotation to access private variables
+        CalciteParser parser = thiz.calciteParserSupplier.get();
+
+        // use parseSqlList here because we need to support statement end with ';' in sql client.
+        SqlNodeList sqlNodeList = parser.parseSqlList(statement);
+        List<SqlNode> parsed = sqlNodeList.getList();
+        Preconditions.checkArgument(parsed.size() == 1, "only single statement supported");
+        return parsed.get(0);
+    }
 }
 
-
-/**
- * Entry point for parsing SQL queries and return the abstract syntax tree
- *
- * @param statement the SQL statement to evaluate
- * @return abstract syntax tree
- * @throws org.apache.flink.table.api.SqlParserException when failed to parse the statement
- */
-@Override
-public SqlNode parseSql(String statement) {
-    CalciteParser parser = calciteParserSupplier.get();
-
-    // use parseSqlList here because we need to support statement end with ';' in sql client.
-    SqlNodeList sqlNodeList = parser.parseSqlList(statement);
-    List<SqlNode> parsed = sqlNodeList.getList();
-    Preconditions.checkArgument(parsed.size() == 1, "only single statement supported");
-    return parsed.get(0);
-}
 ```
+
 ### 5.2 新增SqlSelect类
 复制Calcite源码中的org.apache.calcite.sql.SqlSelect到项目下，新增上文提到的`addCondition()`、`addPermission()`、`buildWhereClause()`三个方法。
 并且在构造方法中注释掉原有的`this.where = where`行，并添加如下代码:
@@ -477,29 +496,32 @@ this.where = rowFilterWhere;
 ### 5.3 封装SecurityContext类
 新建SecurityContext类，主要添加下面三个方法:
 ```java
+
+ParserImpl parser = (ParserImpl) tableEnv.getParser();
+ 
 /**
  * Add row-level filter conditions and return new SQL
  */
 public String addRowFilter(String username, String singleSql) {
-    System.setProperty(EXECUTE_USERNAME, username);
+    System.setProperty(Constant.EXECUTE_USERNAME, username);
 
     // in the modified SqlSelect, filter conditions will be added to the where clause
-    SqlNode parsedTree = tableEnv.getParser().parseSql(singleSql);
+    SqlNode parsedTree = parser.parseSql(singleSql);
     return parsedTree.toString();
 }
 
 
 /**
- * Query the configured permission point according to the user name and table name, and return
+ * Query the configured permission point according to the username and table name, and return
  * it to SqlBasicCall
  */
-public SqlBasicCall queryPermissions(String username, String tableName) {
+public Optional<SqlBasicCall> queryPermissions(String username, String tableName) {
     String permissions = rowLevelPermissions.get(username, tableName);
     LOG.info("username: {}, tableName: {}, permissions: {}", username, tableName, permissions);
     if (permissions != null) {
-        return (SqlBasicCall) tableEnv.getParser().parseExpression(permissions);
+        return Optional.of((SqlBasicCall) parser.parseExpression(permissions));
     }
-    return null;
+    return Optional.empty();
 }
 
 
