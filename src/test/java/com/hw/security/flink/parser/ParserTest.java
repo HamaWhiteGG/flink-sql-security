@@ -1,7 +1,6 @@
 package com.hw.security.flink.parser;
 
 import com.hw.security.flink.basic.AbstractBasicTest;
-
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -16,7 +15,6 @@ import static org.junit.Assert.assertEquals;
 public class ParserTest extends AbstractBasicTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(ParserTest.class);
-
 
     @BeforeClass
     public static void init() {
@@ -45,7 +43,6 @@ public class ParserTest extends AbstractBasicTest {
         testRowFilter(FIRST_USER, inputSql, expected);
     }
 
-
     /**
      * Different users configure different permission points
      */
@@ -58,7 +55,6 @@ public class ParserTest extends AbstractBasicTest {
         testRowFilter(FIRST_USER, inputSql, firstExpected);
         testRowFilter(SECOND_USER, inputSql, secondExpected);
     }
-
 
     /**
      * Where there is a condition
@@ -150,13 +146,13 @@ public class ParserTest extends AbstractBasicTest {
     @Test
     public void testJoinWithBothPermissions() {
         // add permission
-        context.getRowLevelPermissions().put(FIRST_USER, PRODUCTS_TABLE, "name = 'hammer'");
+        context.addPermission(FIRST_USER, PRODUCTS_TABLE, "name = 'hammer'");
         String inputSql = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id";
         String expected = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.region = 'beijing' AND p.name = 'hammer'";
         testRowFilter(FIRST_USER, inputSql, expected);
 
         // delete permission
-        context.getRowLevelPermissions().remove(FIRST_USER, PRODUCTS_TABLE);
+        context.deletePermission(FIRST_USER, PRODUCTS_TABLE);
     }
 
 
@@ -167,8 +163,8 @@ public class ParserTest extends AbstractBasicTest {
     @Test
     public void testThreeJoin() {
         // add permission
-        context.getRowLevelPermissions().put(FIRST_USER, PRODUCTS_TABLE, "name = 'hammer'");
-        context.getRowLevelPermissions().put(FIRST_USER, SHIPMENTS_TABLE, "is_arrived = FALSE");
+        context.addPermission(FIRST_USER, PRODUCTS_TABLE, "name = 'hammer'");
+        context.addPermission(FIRST_USER, SHIPMENTS_TABLE, "is_arrived = FALSE");
 
         String inputSql = "SELECT o.*, p.name, p.description, s.shipment_id, s.origin, s.destination, s.is_arrived FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id LEFT JOIN shipments AS s ON o.order_id = s.order_id";
         String expected = "SELECT o.*, p.name, p.description, s.shipment_id, s.origin, s.destination, s.is_arrived FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id LEFT JOIN shipments AS s ON o.order_id = s.order_id WHERE o.region = 'beijing' AND p.name = 'hammer' AND s.is_arrived = FALSE";
@@ -176,8 +172,8 @@ public class ParserTest extends AbstractBasicTest {
         testRowFilter(FIRST_USER, inputSql, expected);
 
         // delete permission
-        context.getRowLevelPermissions().remove(FIRST_USER, PRODUCTS_TABLE);
-        context.getRowLevelPermissions().remove(FIRST_USER, SHIPMENTS_TABLE);
+        context.deletePermission(FIRST_USER, PRODUCTS_TABLE);
+        context.deletePermission(FIRST_USER, SHIPMENTS_TABLE);
     }
 
 
@@ -218,5 +214,4 @@ public class ParserTest extends AbstractBasicTest {
         LOG.info("Result SQL: {}\n", resultSql);
         assertEquals(expectedSql, resultSql);
     }
-
 }

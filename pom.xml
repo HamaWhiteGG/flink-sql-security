@@ -11,7 +11,7 @@
     <properties>
         <flink.version>1.16.1</flink.version>
         <mysql.version>8.0.32</mysql.version>
-        <slf4j.version>2.0.7</slf4j.version>
+        <slf4j.version>1.7.25</slf4j.version>
         <junit.version>4.13.2</junit.version>
         <lombok.version>1.18.26</lombok.version>
         <mysql.cdc.version>2.3.0</mysql.cdc.version>
@@ -101,7 +101,6 @@
             <version>${slf4j.version}</version>
         </dependency>
     </dependencies>
-
 
     <build>
         <plugins>

@@ -1,7 +1,7 @@
 package com.hw.security.flink;
 
 import com.google.common.collect.Table;
-
+import lombok.SneakyThrows;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.flink.configuration.Configuration;
@@ -15,8 +15,8 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.security.SecureRandom;
 import java.util.Optional;
-import java.util.Random;
 
 /**
  * @description: SecurityContext
@@ -26,24 +26,23 @@ public class SecurityContext {
 
     private static final Logger LOG = LoggerFactory.getLogger(SecurityContext.class);
 
-    private static SecurityContext singleton;
-
-    private final TableEnvironmentImpl tableEnv;
+    private TableEnvironmentImpl tableEnv;
 
     private final ParserImpl parser;
 
-    private Table<String, String, String> rowLevelPermissions;
+    private final Table<String, String, String> rowLevelPermissions;
 
-    public static synchronized SecurityContext getInstance() {
-        if (singleton == null) {
-            singleton = new SecurityContext();
-        }
-        return singleton;
+    public SecurityContext(Table<String, String, String> rowLevelPermissions) {
+        this.rowLevelPermissions = rowLevelPermissions;
+        // init table environment
+        initTableEnv();
+        this.parser = (ParserImpl) tableEnv.getParser();
     }
 
-    private SecurityContext() {
+    private void initTableEnv() {
         Configuration configuration = new Configuration();
-        int port = new Random().nextInt((8188 - 8082) + 1) + 8082;
+
+        int port = generatePort();
         configuration.setInteger("rest.port", port);
         LOG.info("WebUI is http://127.0.0.1:{}", port);
         configuration.setBoolean("table.dynamic-table-options.enabled", true);
@@ -55,7 +54,7 @@ public class SecurityContext {
                     .inStreamingMode()
                     .build();
             this.tableEnv = (TableEnvironmentImpl) StreamTableEnvironment.create(env, settings);
-            this.parser = (ParserImpl) tableEnv.getParser();
+
         } catch (Exception e) {
             throw new FlinkRuntimeException("init local flink execution environment error", e);
         }
@@ -65,11 +64,14 @@ public class SecurityContext {
      * Add row-level filter conditions and return new SQL
      */
     public String addRowFilter(String username, String singleSql) {
-        System.setProperty(Constant.EXECUTE_USERNAME, username);
+        // parsing sql queries and return the abstract syntax tree
+        SqlNode sqlNode = parser.parseSql(singleSql);
 
-        // in the modified SqlSelect, filter conditions will be added to the where clause
-        SqlNode parsedTree = parser.parseSql(singleSql);
-        return parsedTree.toString();
+        // add row-level filtering based on user-configured permission points
+        RowFilterVisitor visitor = new RowFilterVisitor(this, username);
+        sqlNode.accept(visitor);
+
+        return sqlNode.toString();
     }
 
     /**
@@ -80,6 +82,7 @@ public class SecurityContext {
         String permissions = rowLevelPermissions.get(username, tableName);
         LOG.info("username: {}, tableName: {}, permissions: {}", username, tableName, permissions);
         if (permissions != null) {
+            // parses a sql expression into a SqlNode.
             return Optional.of((SqlBasicCall) parser.parseExpression(permissions));
         }
         return Optional.empty();
@@ -89,7 +92,7 @@ public class SecurityContext {
      * Execute the single sql without user permissions
      */
     public TableResult execute(String singleSql) {
-        LOG.info("Execute single sql: {}", singleSql);
+        LOG.info("execute sql: {}", singleSql);
         return tableEnv.executeSql(singleSql);
     }
 
@@ -97,15 +100,23 @@ public class SecurityContext {
      * Execute the single sql with user permissions
      */
     public TableResult execute(String username, String singleSql) {
-        System.setProperty(Constant.EXECUTE_USERNAME, username);
-        return tableEnv.executeSql(singleSql);
+        LOG.info("origin sql: {}", singleSql);
+        String rowFilterSql = addRowFilter(username, singleSql);
+        LOG.info("row filter sql: {}", rowFilterSql);
+
+        return tableEnv.executeSql(rowFilterSql);
     }
 
-    public Table<String, String, String> getRowLevelPermissions() {
-        return rowLevelPermissions;
+    @SneakyThrows
+    private int generatePort() {
+        return SecureRandom.getInstanceStrong().nextInt((8188 - 8082) + 1) + 8082;
     }
 
-    public void setRowLevelPermissions(Table<String, String, String> rowLevelPermissions) {
-        this.rowLevelPermissions = rowLevelPermissions;
+    public void addPermission(String username, String tableName, String permission) {
+        rowLevelPermissions.put(username, tableName, permission);
+    }
+
+    public void deletePermission(String username, String tableName) {
+        rowLevelPermissions.remove(username, tableName);
     }
 }
