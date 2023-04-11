@@ -1,15 +1,13 @@
-package com.dtwave.flink.security.basic;
+package com.hw.security.flink.basic;
 
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 
-import com.dtwave.flink.security.SecurityContext;
+import com.hw.security.flink.SecurityContext;
 
 /**
  * @description: AbstractBasicTest
- * @author: baisong
- * @version: 1.0.0
- * @date: 2022/12/14 5:48 PM
+ * @author: HamaWhite
  */
 public abstract class AbstractBasicTest {
 

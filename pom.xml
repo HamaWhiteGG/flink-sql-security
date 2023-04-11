@@ -4,20 +4,25 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.dtwave.flink</groupId>
-    <artifactId>flink-sql-lineage</artifactId>
+    <groupId>com.hw.security</groupId>
+    <artifactId>flink-sql-security</artifactId>
     <version>1.0.0</version>
 
     <properties>
-        <flink.version>1.16.0</flink.version>
-        <mysql.version>8.0.29</mysql.version>
-        <mysql.cdc.version>2.3.0</mysql.cdc.version>
-
+        <flink.version>1.16.1</flink.version>
+        <mysql.version>8.0.32</mysql.version>
+        <slf4j.version>2.0.7</slf4j.version>
         <junit.version>4.13.2</junit.version>
-        <slf4j.version>1.7.25</slf4j.version>
-        <lombok.version>1.18.24</lombok.version>
-        <java.version>1.8</java.version>
+        <lombok.version>1.18.26</lombok.version>
+        <mysql.cdc.version>2.3.0</mysql.cdc.version>
         <scala.binary.version>2.12</scala.binary.version>
+        <manifold-ext.version>2023.1.4</manifold-ext.version>
+
+        <maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
+
+        <target.java.version>1.8</target.java.version>
+        <maven.compiler.source>${target.java.version}</maven.compiler.source>
+        <maven.compiler.target>${target.java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -84,8 +89,15 @@
         </dependency>
 
         <dependency>
-                <artifactId>slf4j-log4j12</artifactId>
-                <groupId>org.slf4j</groupId>
+            <groupId>systems.manifold</groupId>
+            <artifactId>manifold-ext</artifactId>
+            <version>${manifold-ext.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
             <version>${slf4j.version}</version>
         </dependency>
     </dependencies>
@@ -96,10 +108,25 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.2</version>
+                <version>${maven-compiler-plugin.version}</version>
                 <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
+                    <source>${target.java.version}</source>
+                    <target>${target.java.version}</target>
+                    <compilerArgs>
+                        <arg>-Xplugin:Manifold no-bootstrap</arg>
+                    </compilerArgs>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>systems.manifold</groupId>
+                            <artifactId>manifold-ext</artifactId>
+                            <version>${manifold-ext.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
         </plugins>

@@ -55,7 +55,6 @@ yarn-error.log*
 *.sln
 *.sw?
 
-dist/dependency-lineage*
 data/tmp
 data/log
 

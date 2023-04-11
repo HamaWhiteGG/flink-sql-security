@@ -1,10 +1,8 @@
-package com.dtwave.flink.security;
+package com.hw.security.flink;
 
 /**
  * @description: Constant
- * @author: baisong
- * @version: 1.0.0
- * @date: 2022/12/13 8:41 PM
+ * @author: HamaWhite
  */
 public class Constant {
 

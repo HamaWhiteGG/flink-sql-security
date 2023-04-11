@@ -1,6 +1,6 @@
-package com.dtwave.flink.security.execute;
+package com.hw.security.flink.execute;
 
-import com.dtwave.flink.security.basic.AbstractBasicTest;
+import com.hw.security.flink.basic.AbstractBasicTest;
 
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -11,9 +11,7 @@ import org.junit.Test;
  * and then optimize it in the next step
  *
  * @description: Execute SQL based on row-level filter conditions
- * @author: baisong
- * @version: 1.0.0
- * @date: 2022/12/14 6:00 PM
+ * @author: HamaWhite
  */
 @Ignore
 public class ExecuteTest extends AbstractBasicTest {

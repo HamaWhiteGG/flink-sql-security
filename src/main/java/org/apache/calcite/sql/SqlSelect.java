@@ -18,7 +18,7 @@ package org.apache.calcite.sql;
 
 import com.google.common.collect.ImmutableList;
 
-import com.dtwave.flink.security.SecurityContext;
+import com.hw.security.flink.SecurityContext;
 
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlValidator;
@@ -32,7 +32,7 @@ import java.util.Objects;
 
 import javax.annotation.Nonnull;
 
-import static com.dtwave.flink.security.Constant.EXECUTE_USERNAME;
+import static com.hw.security.flink.Constant.EXECUTE_USERNAME;
 
 /**
  * A <code>SqlSelect</code> is a node of a parse tree which represents a select statement. It
@@ -40,9 +40,7 @@ import static com.dtwave.flink.security.Constant.EXECUTE_USERNAME;
  *
  * @description: Modify the value method of where to addCondition() to support row-level permission
  * filtering
- * @author: baisong
- * @version: 1.0.0
- * @date: 2022/12/14 12:24 PM
+ * @author: HamaWhite
  */
 public class SqlSelect extends SqlCall {
     private static final Logger LOG = LoggerFactory.getLogger(SqlSelect.class);
