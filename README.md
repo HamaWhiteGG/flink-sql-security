@@ -7,7 +7,7 @@ FlinkSQL的行级权限解决方案及源码，支持面向用户级别的行级
 | 序号 | 作者 | 版本 | 时间 | 备注 |
 | --- | --- | --- | --- | --- |
 | 1 | HamaWhite | 1.0.0 | 2022-12-15 | 1. 增加文档和源码 |
-| 1 | HamaWhite | 1.0.1 | 2023-04-11 | 1. 通过 [manifold-ext](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-ext) 扩展Flink ParserImpl类的方法 |
+| 1 | HamaWhite | 1.0.1 | 2023-04-11 | 1. 通过 [manifold-ext](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-ext) 扩展Flink ParserImpl类的方法</br> 2. 用calcite visitor来实现行级权限，而不是修改SqlSelect源码</br> 3. 添加行级权限前，对AST进行validate |
 
 
 </br>
