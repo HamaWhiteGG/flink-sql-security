@@ -1,6 +1,7 @@
-package com.hw.security.flink;
+package com.hw.security.flink.visitor;
 
 import com.google.common.collect.ImmutableList;
+import com.hw.security.flink.SecurityContext;
 import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.util.SqlBasicVisitor;

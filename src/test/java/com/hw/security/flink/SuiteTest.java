@@ -1,7 +1,7 @@
 package com.hw.security.flink;
 
 import com.hw.security.flink.execute.ExecuteTest;
-import com.hw.security.flink.parser.ParserTest;
+import com.hw.security.flink.rewritten.RowFilterTest;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -10,7 +10,7 @@ import org.junit.runners.Suite;
  * @author: HamaWhite
  */
 @RunWith(Suite.class)
-@Suite.SuiteClasses({ParserTest.class
+@Suite.SuiteClasses({RowFilterTest.class
         , ExecuteTest.class})
 public class SuiteTest {
 

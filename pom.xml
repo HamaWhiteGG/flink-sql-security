@@ -15,6 +15,7 @@
         <junit.version>4.13.2</junit.version>
         <lombok.version>1.18.26</lombok.version>
         <mysql.cdc.version>2.3.0</mysql.cdc.version>
+        <fastjson2.version>2.0.24</fastjson2.version>
         <scala.binary.version>2.12</scala.binary.version>
         <manifold-ext.version>2023.1.4</manifold-ext.version>
 
@@ -93,6 +94,12 @@
             <artifactId>manifold-ext</artifactId>
             <version>${manifold-ext.version}</version>
             <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.alibaba.fastjson2</groupId>
+            <artifactId>fastjson2</artifactId>
+            <version>${fastjson2.version}</version>
         </dependency>
 
         <dependency>
