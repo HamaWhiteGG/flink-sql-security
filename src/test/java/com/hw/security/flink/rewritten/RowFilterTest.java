@@ -1,6 +1,7 @@
-package com.hw.security.flink.parser;
+package com.hw.security.flink.rewritten;
 
 import com.hw.security.flink.basic.AbstractBasicTest;
+import com.hw.security.flink.policy.RowFilterPolicy;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -12,12 +13,12 @@ import static org.junit.Assert.assertEquals;
  * @description: Rewrite SQL based on row-level filter conditions
  * @author: HamaWhite
  */
-public class ParserTest extends AbstractBasicTest {
+public class RowFilterTest extends AbstractBasicTest {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ParserTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RowFilterTest.class);
 
     @BeforeClass
-    public static void init() {
+    public static void createTable() {
         // create mysql cdc table orders
         createTableOfOrders();
 
@@ -29,6 +30,11 @@ public class ParserTest extends AbstractBasicTest {
 
         // create print sink table print_sink
         createTableOfPrintSink();
+
+        // set row level permissions
+        manager.addPolicy(rowFilterPolicy(USER_A, TABLE_ORDERS, "region = 'beijing'"));
+        manager.addPolicy(rowFilterPolicy(USER_B, TABLE_ORDERS, "region = 'hangzhou'"));
+
     }
 
 
@@ -40,7 +46,7 @@ public class ParserTest extends AbstractBasicTest {
         String inputSql = "SELECT * FROM orders";
         String expected = "SELECT * FROM orders WHERE region = 'beijing'";
 
-        testRowFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(USER_A, inputSql, expected);
     }
 
     /**
@@ -52,8 +58,8 @@ public class ParserTest extends AbstractBasicTest {
         String firstExpected = "SELECT * FROM orders WHERE region = 'beijing'";
         String secondExpected = "SELECT * FROM orders WHERE region = 'hangzhou'";
 
-        testRowFilter(FIRST_USER, inputSql, firstExpected);
-        testRowFilter(SECOND_USER, inputSql, secondExpected);
+        testRowFilter(USER_A, inputSql, firstExpected);
+        testRowFilter(USER_B, inputSql, secondExpected);
     }
 
     /**
@@ -64,7 +70,7 @@ public class ParserTest extends AbstractBasicTest {
         String inputSql = "SELECT * FROM orders WHERE price > 45.0";
         String expected = "SELECT * FROM orders WHERE price > 45.0 AND region = 'beijing'";
 
-        testRowFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(USER_A, inputSql, expected);
     }
 
 
@@ -77,7 +83,7 @@ public class ParserTest extends AbstractBasicTest {
         String inputSql = "SELECT * FROM orders WHERE price > 45.0 OR customer_name = 'John'";
         String expected = "SELECT * FROM orders WHERE (price > 45.0 OR customer_name = 'John') AND region = 'beijing'";
 
-        testRowFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(USER_A, inputSql, expected);
     }
 
 
@@ -89,7 +95,7 @@ public class ParserTest extends AbstractBasicTest {
         String inputSql = "SELECT customer_name, count(*) AS cnt FROM orders WHERE price > 45.0 GROUP BY customer_name";
         String expected = "SELECT customer_name, COUNT(*) AS cnt FROM orders WHERE price > 45.0 AND region = 'beijing' GROUP BY customer_name";
 
-        testRowFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(USER_A, inputSql, expected);
     }
 
 
@@ -101,7 +107,7 @@ public class ParserTest extends AbstractBasicTest {
         String inputSql = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id";
         String expected = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.region = 'beijing'";
 
-        testRowFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(USER_A, inputSql, expected);
     }
 
 
@@ -113,7 +119,7 @@ public class ParserTest extends AbstractBasicTest {
         String inputSql = "SELECT o.*, p.name, p.description FROM orders LEFT JOIN products ON orders.product_id = products.id";
         String expected = "SELECT o.*, p.name, p.description FROM orders LEFT JOIN products ON orders.product_id = products.id WHERE orders.region = 'beijing'";
 
-        testRowFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(USER_A, inputSql, expected);
     }
 
 
@@ -125,7 +131,7 @@ public class ParserTest extends AbstractBasicTest {
         String inputSql = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.price > 45.0 OR o.customer_name = 'John'";
         String expected = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE (o.price > 45.0 OR o.customer_name = 'John') AND o.region = 'beijing'";
 
-        testRowFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(USER_A, inputSql, expected);
     }
 
 
@@ -136,7 +142,7 @@ public class ParserTest extends AbstractBasicTest {
     public void testJoinSubQueryWhere() {
         String inputSql = "SELECT o.*, p.name, p.description FROM (SELECT * FROM orders WHERE order_status = FALSE) AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.price > 45.0 OR o.customer_name = 'John'";
         String expected = "SELECT o.*, p.name, p.description FROM (SELECT * FROM orders WHERE order_status = FALSE AND region = 'beijing') AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.price > 45.0 OR o.customer_name = 'John'";
-        testRowFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(USER_A, inputSql, expected);
     }
 
 
@@ -145,14 +151,17 @@ public class ParserTest extends AbstractBasicTest {
      */
     @Test
     public void testJoinWithBothPermissions() {
-        // add permission
-        context.addPermission(FIRST_USER, PRODUCTS_TABLE, "name = 'hammer'");
+        RowFilterPolicy policy = rowFilterPolicy(USER_A, TABLE_PRODUCTS, "name = 'hammer'");
+        // add policy
+        manager.addPolicy(policy);
+
         String inputSql = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id";
         String expected = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.region = 'beijing' AND p.name = 'hammer'";
-        testRowFilter(FIRST_USER, inputSql, expected);
 
-        // delete permission
-        context.deletePermission(FIRST_USER, PRODUCTS_TABLE);
+        testRowFilter(USER_A, inputSql, expected);
+
+        // remove policy
+        manager.removePolicy(policy);
     }
 
 
@@ -162,18 +171,20 @@ public class ParserTest extends AbstractBasicTest {
      */
     @Test
     public void testThreeJoin() {
-        // add permission
-        context.addPermission(FIRST_USER, PRODUCTS_TABLE, "name = 'hammer'");
-        context.addPermission(FIRST_USER, SHIPMENTS_TABLE, "is_arrived = FALSE");
+        RowFilterPolicy policy1=rowFilterPolicy(USER_A, TABLE_PRODUCTS, "name = 'hammer'");
+        RowFilterPolicy policy2=rowFilterPolicy(USER_A, TABLE_SHIPMENTS, "is_arrived = FALSE");
+        // add policies
+        manager.addPolicy(policy1);
+        manager.addPolicy(policy2);
 
         String inputSql = "SELECT o.*, p.name, p.description, s.shipment_id, s.origin, s.destination, s.is_arrived FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id LEFT JOIN shipments AS s ON o.order_id = s.order_id";
         String expected = "SELECT o.*, p.name, p.description, s.shipment_id, s.origin, s.destination, s.is_arrived FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id LEFT JOIN shipments AS s ON o.order_id = s.order_id WHERE o.region = 'beijing' AND p.name = 'hammer' AND s.is_arrived = FALSE";
 
-        testRowFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(USER_A, inputSql, expected);
 
-        // delete permission
-        context.deletePermission(FIRST_USER, PRODUCTS_TABLE);
-        context.deletePermission(FIRST_USER, SHIPMENTS_TABLE);
+        // remove policies
+        manager.removePolicy(policy1);
+        manager.removePolicy(policy2);
     }
 
 
@@ -187,7 +198,7 @@ public class ParserTest extends AbstractBasicTest {
         // the following () is what Calcite would automatically add
         String expected = "INSERT INTO print_sink (SELECT * FROM orders WHERE region = 'beijing')";
 
-        testRowFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(USER_A, inputSql, expected);
     }
 
 
@@ -201,7 +212,7 @@ public class ParserTest extends AbstractBasicTest {
         // the following () is what Calcite would automatically add
         String expected = "INSERT INTO print_sink (SELECT * FROM (SELECT * FROM orders WHERE region = 'beijing'))";
 
-        testRowFilter(FIRST_USER, inputSql, expected);
+        testRowFilter(USER_A, inputSql, expected);
     }
 
 

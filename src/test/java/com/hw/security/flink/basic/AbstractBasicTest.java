@@ -1,8 +1,10 @@
 package com.hw.security.flink.basic;
 
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.Table;
+import com.hw.security.flink.PolicyManager;
 import com.hw.security.flink.SecurityContext;
+import com.hw.security.flink.policy.DataMaskPolicy;
+import com.hw.security.flink.policy.RowFilterPolicy;
+import org.junit.BeforeClass;
 
 /**
  * @description: AbstractBasicTest
@@ -10,30 +12,41 @@ import com.hw.security.flink.SecurityContext;
  */
 public abstract class AbstractBasicTest {
 
-    protected static final String FIRST_USER = "hamawhite";
-    protected static final String SECOND_USER = "song.bs";
+    private static final String CATALOG_NAME = "default_catalog";
+    private static final String DATABASE = "default_database";
 
-    protected static final String ORDERS_TABLE = "orders";
-    protected static final String PRODUCTS_TABLE = "products";
-    protected static final String SHIPMENTS_TABLE = "shipments";
+    protected static final String USER_A = "user_A";
+    protected static final String USER_B = "user_B";
 
+    protected static final String TABLE_ORDERS = "orders";
+    protected static final String TABLE_PRODUCTS = "products";
+    protected static final String TABLE_SHIPMENTS = "shipments";
+
+    protected static PolicyManager manager;
     protected static SecurityContext context;
 
-    static {
-        // set row level permissions
-        Table<String, String, String> rowLevelPermissions = HashBasedTable.create();
-        rowLevelPermissions.put(FIRST_USER, ORDERS_TABLE, "region = 'beijing'");
-        rowLevelPermissions.put(SECOND_USER, ORDERS_TABLE, "region = 'hangzhou'");
-        context = new SecurityContext(rowLevelPermissions);
+
+    @BeforeClass
+    public static void setup() {
+        manager = new PolicyManager();
+        context = new SecurityContext(manager);
+    }
+
+    public static RowFilterPolicy rowFilterPolicy(String username, String tableName, String condition) {
+        return new RowFilterPolicy(username, CATALOG_NAME, DATABASE, tableName, condition);
+    }
+
+    public static DataMaskPolicy dataMaskPolicy(String username, String tableName, String columnName, String condition) {
+        return new DataMaskPolicy(username, CATALOG_NAME, DATABASE, tableName, columnName, condition);
     }
 
     /**
      * Create mysql cdc table products
      */
     protected static void createTableOfProducts() {
-        context.execute("DROP TABLE IF EXISTS " + PRODUCTS_TABLE);
+        context.execute("DROP TABLE IF EXISTS " + TABLE_PRODUCTS);
 
-        context.execute("CREATE TABLE IF NOT EXISTS " + PRODUCTS_TABLE + " (" +
+        context.execute("CREATE TABLE IF NOT EXISTS " + TABLE_PRODUCTS + " (" +
                 "       id                  INT PRIMARY KEY NOT ENFORCED ," +
                 "       name                STRING                       ," +
                 "       description         STRING                        " +
@@ -45,7 +58,7 @@ public abstract class AbstractBasicTest {
                 "       'password'  = 'root@123456'          ," +
                 "       'server-time-zone' = 'Asia/Shanghai' ," +
                 "       'database-name' = 'demo'             ," +
-                "       'table-name'    = '" + PRODUCTS_TABLE + "' " +
+                "       'table-name'    = '" + TABLE_PRODUCTS + "' " +
                 ")"
         );
     }
@@ -54,9 +67,9 @@ public abstract class AbstractBasicTest {
      * Create mysql cdc table orders
      */
     protected static void createTableOfOrders() {
-        context.execute("DROP TABLE IF EXISTS " + ORDERS_TABLE);
+        context.execute("DROP TABLE IF EXISTS " + TABLE_ORDERS);
 
-        context.execute("CREATE TABLE IF NOT EXISTS " + ORDERS_TABLE + " (" +
+        context.execute("CREATE TABLE IF NOT EXISTS " + TABLE_ORDERS + " (" +
                 "       order_id            INT PRIMARY KEY NOT ENFORCED ," +
                 "       order_date          TIMESTAMP(0)                 ," +
                 "       customer_name       STRING                       ," +
@@ -72,7 +85,7 @@ public abstract class AbstractBasicTest {
                 "       'password'  = 'root@123456'          ," +
                 "       'server-time-zone' = 'Asia/Shanghai' ," +
                 "       'database-name' = 'demo'             ," +
-                "       'table-name'    = '" + ORDERS_TABLE + "' " +
+                "       'table-name'    = '" + TABLE_ORDERS + "' " +
                 ")"
         );
     }
@@ -102,9 +115,9 @@ public abstract class AbstractBasicTest {
      * Create mysql cdc table shipments
      */
     protected static void createTableOfShipments() {
-        context.execute("DROP TABLE IF EXISTS " + SHIPMENTS_TABLE);
+        context.execute("DROP TABLE IF EXISTS " + TABLE_SHIPMENTS);
 
-        context.execute("CREATE TABLE IF NOT EXISTS " + SHIPMENTS_TABLE + " (" +
+        context.execute("CREATE TABLE IF NOT EXISTS " + TABLE_SHIPMENTS + " (" +
                 "       shipment_id          INT PRIMARY KEY NOT ENFORCED ," +
                 "       order_id             INT                          ," +
                 "       origin               STRING                       ," +
@@ -118,7 +131,7 @@ public abstract class AbstractBasicTest {
                 "       'password'  = 'root@123456'          ," +
                 "       'server-time-zone' = 'Asia/Shanghai' ," +
                 "       'database-name' = 'demo'             ," +
-                "       'table-name'    = '" + SHIPMENTS_TABLE + "' " +
+                "       'table-name'    = '" + TABLE_SHIPMENTS + "' " +
                 ")"
         );
     }
