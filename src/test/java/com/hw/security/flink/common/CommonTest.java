@@ -29,7 +29,7 @@ public class CommonTest extends AbstractBasicTest {
 
     @Test
     public void testGetTable() {
-        TableEntity actual = context.getTable(TABLE_ORDERS);
+        TableEntity actual = securityContext.getTable(TABLE_ORDERS);
         List<ColumnEntity> columnList = ImmutableList.of(
                 new ColumnEntity("order_id", "INT"),
                 new ColumnEntity("order_date", "TIMESTAMP(0)"),

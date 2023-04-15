@@ -11,15 +11,15 @@ import java.util.Map;
 @Data
 public class DataMaskType {
 
-    private Long                itemId;
+    private Long itemId;
 
-    private String              name;
+    private String name;
 
-    private String              label;
+    private String label;
 
-    private String              description;
+    private String description;
 
-    private String              transformer;
+    private String transformer;
 
     private Map<String, String> dataMaskOptions;
 }

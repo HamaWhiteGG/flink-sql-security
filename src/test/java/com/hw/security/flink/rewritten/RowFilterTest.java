@@ -18,7 +18,7 @@ public class RowFilterTest extends AbstractBasicTest {
     private static final Logger LOG = LoggerFactory.getLogger(RowFilterTest.class);
 
     @BeforeClass
-    public static void createTable() {
+    public static void init() {
         // create mysql cdc table orders
         createTableOfOrders();
 
@@ -31,11 +31,11 @@ public class RowFilterTest extends AbstractBasicTest {
         // create print sink table print_sink
         createTableOfPrintSink();
 
-        // set row level permissions
-        manager.addPolicy(rowFilterPolicy(USER_A, TABLE_ORDERS, "region = 'beijing'"));
-        manager.addPolicy(rowFilterPolicy(USER_B, TABLE_ORDERS, "region = 'hangzhou'"));
-
+        // add row filter policies
+        policyManager.addPolicy(rowFilterPolicy(USER_A, TABLE_ORDERS, "region = 'beijing'"));
+        policyManager.addPolicy(rowFilterPolicy(USER_B, TABLE_ORDERS, "region = 'hangzhou'"));
     }
+
 
 
     /**
@@ -46,7 +46,7 @@ public class RowFilterTest extends AbstractBasicTest {
         String inputSql = "SELECT * FROM orders";
         String expected = "SELECT * FROM orders WHERE region = 'beijing'";
 
-        testRowFilter(USER_A, inputSql, expected);
+        testApplyRowFilter(USER_A, inputSql, expected);
     }
 
     /**
@@ -58,8 +58,8 @@ public class RowFilterTest extends AbstractBasicTest {
         String firstExpected = "SELECT * FROM orders WHERE region = 'beijing'";
         String secondExpected = "SELECT * FROM orders WHERE region = 'hangzhou'";
 
-        testRowFilter(USER_A, inputSql, firstExpected);
-        testRowFilter(USER_B, inputSql, secondExpected);
+        testApplyRowFilter(USER_A, inputSql, firstExpected);
+        testApplyRowFilter(USER_B, inputSql, secondExpected);
     }
 
     /**
@@ -70,7 +70,7 @@ public class RowFilterTest extends AbstractBasicTest {
         String inputSql = "SELECT * FROM orders WHERE price > 45.0";
         String expected = "SELECT * FROM orders WHERE price > 45.0 AND region = 'beijing'";
 
-        testRowFilter(USER_A, inputSql, expected);
+        testApplyRowFilter(USER_A, inputSql, expected);
     }
 
 
@@ -83,7 +83,7 @@ public class RowFilterTest extends AbstractBasicTest {
         String inputSql = "SELECT * FROM orders WHERE price > 45.0 OR customer_name = 'John'";
         String expected = "SELECT * FROM orders WHERE (price > 45.0 OR customer_name = 'John') AND region = 'beijing'";
 
-        testRowFilter(USER_A, inputSql, expected);
+        testApplyRowFilter(USER_A, inputSql, expected);
     }
 
 
@@ -95,7 +95,7 @@ public class RowFilterTest extends AbstractBasicTest {
         String inputSql = "SELECT customer_name, count(*) AS cnt FROM orders WHERE price > 45.0 GROUP BY customer_name";
         String expected = "SELECT customer_name, COUNT(*) AS cnt FROM orders WHERE price > 45.0 AND region = 'beijing' GROUP BY customer_name";
 
-        testRowFilter(USER_A, inputSql, expected);
+        testApplyRowFilter(USER_A, inputSql, expected);
     }
 
 
@@ -107,7 +107,7 @@ public class RowFilterTest extends AbstractBasicTest {
         String inputSql = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id";
         String expected = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.region = 'beijing'";
 
-        testRowFilter(USER_A, inputSql, expected);
+        testApplyRowFilter(USER_A, inputSql, expected);
     }
 
 
@@ -119,7 +119,7 @@ public class RowFilterTest extends AbstractBasicTest {
         String inputSql = "SELECT o.*, p.name, p.description FROM orders LEFT JOIN products ON orders.product_id = products.id";
         String expected = "SELECT o.*, p.name, p.description FROM orders LEFT JOIN products ON orders.product_id = products.id WHERE orders.region = 'beijing'";
 
-        testRowFilter(USER_A, inputSql, expected);
+        testApplyRowFilter(USER_A, inputSql, expected);
     }
 
 
@@ -131,7 +131,7 @@ public class RowFilterTest extends AbstractBasicTest {
         String inputSql = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.price > 45.0 OR o.customer_name = 'John'";
         String expected = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE (o.price > 45.0 OR o.customer_name = 'John') AND o.region = 'beijing'";
 
-        testRowFilter(USER_A, inputSql, expected);
+        testApplyRowFilter(USER_A, inputSql, expected);
     }
 
 
@@ -142,7 +142,7 @@ public class RowFilterTest extends AbstractBasicTest {
     public void testJoinSubQueryWhere() {
         String inputSql = "SELECT o.*, p.name, p.description FROM (SELECT * FROM orders WHERE order_status = FALSE) AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.price > 45.0 OR o.customer_name = 'John'";
         String expected = "SELECT o.*, p.name, p.description FROM (SELECT * FROM orders WHERE order_status = FALSE AND region = 'beijing') AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.price > 45.0 OR o.customer_name = 'John'";
-        testRowFilter(USER_A, inputSql, expected);
+        testApplyRowFilter(USER_A, inputSql, expected);
     }
 
 
@@ -153,15 +153,15 @@ public class RowFilterTest extends AbstractBasicTest {
     public void testJoinWithBothPermissions() {
         RowFilterPolicy policy = rowFilterPolicy(USER_A, TABLE_PRODUCTS, "name = 'hammer'");
         // add policy
-        manager.addPolicy(policy);
+        policyManager.addPolicy(policy);
 
         String inputSql = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id";
         String expected = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.region = 'beijing' AND p.name = 'hammer'";
 
-        testRowFilter(USER_A, inputSql, expected);
+        testApplyRowFilter(USER_A, inputSql, expected);
 
         // remove policy
-        manager.removePolicy(policy);
+        policyManager.removePolicy(policy);
     }
 
 
@@ -174,17 +174,17 @@ public class RowFilterTest extends AbstractBasicTest {
         RowFilterPolicy policy1=rowFilterPolicy(USER_A, TABLE_PRODUCTS, "name = 'hammer'");
         RowFilterPolicy policy2=rowFilterPolicy(USER_A, TABLE_SHIPMENTS, "is_arrived = FALSE");
         // add policies
-        manager.addPolicy(policy1);
-        manager.addPolicy(policy2);
+        policyManager.addPolicy(policy1);
+        policyManager.addPolicy(policy2);
 
         String inputSql = "SELECT o.*, p.name, p.description, s.shipment_id, s.origin, s.destination, s.is_arrived FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id LEFT JOIN shipments AS s ON o.order_id = s.order_id";
         String expected = "SELECT o.*, p.name, p.description, s.shipment_id, s.origin, s.destination, s.is_arrived FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id LEFT JOIN shipments AS s ON o.order_id = s.order_id WHERE o.region = 'beijing' AND p.name = 'hammer' AND s.is_arrived = FALSE";
 
-        testRowFilter(USER_A, inputSql, expected);
+        testApplyRowFilter(USER_A, inputSql, expected);
 
         // remove policies
-        manager.removePolicy(policy1);
-        manager.removePolicy(policy2);
+        policyManager.removePolicy(policy1);
+        policyManager.removePolicy(policy2);
     }
 
 
@@ -198,7 +198,7 @@ public class RowFilterTest extends AbstractBasicTest {
         // the following () is what Calcite would automatically add
         String expected = "INSERT INTO print_sink (SELECT * FROM orders WHERE region = 'beijing')";
 
-        testRowFilter(USER_A, inputSql, expected);
+        testApplyRowFilter(USER_A, inputSql, expected);
     }
 
 
@@ -212,12 +212,12 @@ public class RowFilterTest extends AbstractBasicTest {
         // the following () is what Calcite would automatically add
         String expected = "INSERT INTO print_sink (SELECT * FROM (SELECT * FROM orders WHERE region = 'beijing'))";
 
-        testRowFilter(USER_A, inputSql, expected);
+        testApplyRowFilter(USER_A, inputSql, expected);
     }
 
 
-    private void testRowFilter(String username, String inputSql, String expectedSql) {
-        String resultSql = context.addRowFilter(username, inputSql);
+    private void testApplyRowFilter(String username, String inputSql, String expectedSql) {
+        String resultSql = securityContext.applyRowFilter(username, inputSql);
         // replace \n with spaces and remove single apostrophes
         resultSql = resultSql.replace("\n", " ").replace("`", "");
 

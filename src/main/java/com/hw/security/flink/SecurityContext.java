@@ -1,6 +1,5 @@
 package com.hw.security.flink;
 
-import com.google.common.collect.Table;
 import com.hw.security.flink.model.ColumnEntity;
 import com.hw.security.flink.model.TableEntity;
 import com.hw.security.flink.visitor.DataMaskVisitor;
@@ -75,7 +74,7 @@ public class SecurityContext {
     /**
      * Add row-level filter conditions and return new SQL
      */
-    public String addRowFilter(String username, String singleSql) {
+    public String applyRowFilter(String username, String singleSql) {
         // parsing sql and return the abstract syntax tree
         SqlNode sqlNode = parser.parseSql(singleSql);
 
@@ -89,7 +88,7 @@ public class SecurityContext {
     /**
      * Add column masking and return new SQL
      */
-    public String addColumnMasking(String username, String singleSql) {
+    public String applyDataMask(String username, String singleSql) {
         // parsing sql and return the abstract syntax tree
         SqlNode sqlNode = parser.parseSql(singleSql);
 
@@ -100,15 +99,9 @@ public class SecurityContext {
         return sqlNode.toString();
     }
 
-    /**
-     * Query the configured permission point according to the username and table name, and return
-     * it to SqlBasicCall
-     */
-    public Optional<SqlBasicCall> queryPermissions(String username, String tableName) {
-        // TODO optimize
-        Optional<String> condition = policyManager.getRowFilterCondition(username, tableEnv.getCurrentCatalog(), tableEnv.getCurrentDatabase(), tableName);
-        // parses a sql expression into a SqlNode.
-        return condition.map(s -> (SqlBasicCall) parser.parseExpression(s));
+
+    public SqlNode parseExpression(String sqlExpression) {
+        return parser.parseExpression(sqlExpression);
     }
 
     /**
@@ -124,20 +117,39 @@ public class SecurityContext {
      */
     public TableResult execute(String username, String singleSql) {
         LOG.info("Execute origin SQL: {}", singleSql);
-        String rowFilterSql = addRowFilter(username, singleSql);
+        String rowFilterSql = applyRowFilter(username, singleSql);
         LOG.info("Execute row-filter SQL: {}", rowFilterSql);
         LOG.debug("Explain row-filter SQL: {}", tableEnv.explainSql(rowFilterSql));
         return tableEnv.executeSql(rowFilterSql);
+    }
+
+    private Catalog getCatalog(String catalogName) {
+        return tableEnv.getCatalog(catalogName).orElseThrow(() ->
+                new ValidationException(String.format("Catalog %s does not exist", catalogName))
+        );
     }
 
     public TableEntity getTable(String tableName) {
         return getTable(tableEnv.getCurrentCatalog(), tableEnv.getCurrentDatabase(), tableName);
     }
 
+
+    public String getCurrentCatalog() {
+        return tableEnv.getCurrentCatalog();
+    }
+
+    public String getCurrentDatabase() {
+        return tableEnv.getCurrentDatabase();
+    }
+
+    public PolicyManager getPolicyManager() {
+        return policyManager;
+    }
+
+
     public TableEntity getTable(String database, String tableName) {
         return getTable(tableEnv.getCurrentCatalog(), database, tableName);
     }
-
 
     public TableEntity getTable(String catalogName, String database, String tableName) {
         ObjectPath objectPath = new ObjectPath(database, tableName);
@@ -156,12 +168,6 @@ public class SecurityContext {
             throw new TableException(String.format(
                     "Cannot find table '%s' in the database %s of catalog %s .", tableName, database, catalogName));
         }
-    }
-
-    private Catalog getCatalog(String catalogName) {
-        return tableEnv.getCatalog(catalogName).orElseThrow(() ->
-                new ValidationException(String.format("Catalog %s does not exist", catalogName))
-        );
     }
 
     private String processColumnType(UnresolvedColumn column) {

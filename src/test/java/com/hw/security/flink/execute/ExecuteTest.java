@@ -26,7 +26,7 @@ public class ExecuteTest extends AbstractBasicTest {
      */
     @Test
     public void testExecute() {
-        context.execute("SELECT * FROM orders").print();
+        securityContext.execute("SELECT * FROM orders").print();
     }
 
 
@@ -35,7 +35,7 @@ public class ExecuteTest extends AbstractBasicTest {
      */
     @Test
     public void testExecuteByFirstUser() {
-        context.execute(USER_A, "SELECT * FROM orders").print();
+        securityContext.execute(USER_A, "SELECT * FROM orders").print();
     }
 
     /**
@@ -43,6 +43,6 @@ public class ExecuteTest extends AbstractBasicTest {
      */
     @Test
     public void testExecuteBySecondUser() {
-        context.execute(USER_B, "SELECT * FROM orders").print();
+        securityContext.execute(USER_B, "SELECT * FROM orders").print();
     }
 }

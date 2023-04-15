@@ -13,6 +13,7 @@
         <mysql.version>8.0.32</mysql.version>
         <slf4j.version>1.7.25</slf4j.version>
         <junit.version>4.13.2</junit.version>
+        <assertj.version>3.24.2</assertj.version>
         <lombok.version>1.18.26</lombok.version>
         <mysql.cdc.version>2.3.0</mysql.cdc.version>
         <fastjson2.version>2.0.24</fastjson2.version>
@@ -80,6 +81,13 @@
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
             <scope>test</scope>
         </dependency>
 
