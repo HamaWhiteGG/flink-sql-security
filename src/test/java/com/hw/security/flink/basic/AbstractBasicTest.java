@@ -22,14 +22,14 @@ public abstract class AbstractBasicTest {
     protected static final String TABLE_PRODUCTS = "products";
     protected static final String TABLE_SHIPMENTS = "shipments";
 
-    protected static PolicyManager manager;
-    protected static SecurityContext context;
+    protected static PolicyManager policyManager;
+    protected static SecurityContext securityContext;
 
 
     @BeforeClass
     public static void setup() {
-        manager = new PolicyManager();
-        context = new SecurityContext(manager);
+        policyManager = new PolicyManager();
+        securityContext = new SecurityContext(policyManager);
     }
 
     public static RowFilterPolicy rowFilterPolicy(String username, String tableName, String condition) {
@@ -44,9 +44,9 @@ public abstract class AbstractBasicTest {
      * Create mysql cdc table products
      */
     protected static void createTableOfProducts() {
-        context.execute("DROP TABLE IF EXISTS " + TABLE_PRODUCTS);
+        securityContext.execute("DROP TABLE IF EXISTS " + TABLE_PRODUCTS);
 
-        context.execute("CREATE TABLE IF NOT EXISTS " + TABLE_PRODUCTS + " (" +
+        securityContext.execute("CREATE TABLE IF NOT EXISTS " + TABLE_PRODUCTS + " (" +
                 "       id                  INT PRIMARY KEY NOT ENFORCED ," +
                 "       name                STRING                       ," +
                 "       description         STRING                        " +
@@ -67,9 +67,9 @@ public abstract class AbstractBasicTest {
      * Create mysql cdc table orders
      */
     protected static void createTableOfOrders() {
-        context.execute("DROP TABLE IF EXISTS " + TABLE_ORDERS);
+        securityContext.execute("DROP TABLE IF EXISTS " + TABLE_ORDERS);
 
-        context.execute("CREATE TABLE IF NOT EXISTS " + TABLE_ORDERS + " (" +
+        securityContext.execute("CREATE TABLE IF NOT EXISTS " + TABLE_ORDERS + " (" +
                 "       order_id            INT PRIMARY KEY NOT ENFORCED ," +
                 "       order_date          TIMESTAMP(0)                 ," +
                 "       customer_name       STRING                       ," +
@@ -95,9 +95,9 @@ public abstract class AbstractBasicTest {
      * Create mysql cdc table print_sink
      */
     protected static void createTableOfPrintSink() {
-        context.execute("DROP TABLE IF EXISTS print_sink ");
+        securityContext.execute("DROP TABLE IF EXISTS print_sink ");
 
-        context.execute("CREATE TABLE IF NOT EXISTS print_sink (" +
+        securityContext.execute("CREATE TABLE IF NOT EXISTS print_sink (" +
                 "       order_id            INT PRIMARY KEY NOT ENFORCED ," +
                 "       order_date          TIMESTAMP(0)                 ," +
                 "       customer_name       STRING                       ," +
@@ -115,9 +115,9 @@ public abstract class AbstractBasicTest {
      * Create mysql cdc table shipments
      */
     protected static void createTableOfShipments() {
-        context.execute("DROP TABLE IF EXISTS " + TABLE_SHIPMENTS);
+        securityContext.execute("DROP TABLE IF EXISTS " + TABLE_SHIPMENTS);
 
-        context.execute("CREATE TABLE IF NOT EXISTS " + TABLE_SHIPMENTS + " (" +
+        securityContext.execute("CREATE TABLE IF NOT EXISTS " + TABLE_SHIPMENTS + " (" +
                 "       shipment_id          INT PRIMARY KEY NOT ENFORCED ," +
                 "       order_id             INT                          ," +
                 "       origin               STRING                       ," +
