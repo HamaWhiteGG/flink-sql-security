@@ -1,21 +1,15 @@
 package com.hw.security.flink.execute;
 
 import com.hw.security.flink.basic.AbstractBasicTest;
-import org.apache.flink.types.Row;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
- * Note: When running manually, first temporarily comment out the @Ignore annotation on the class,
- * and then optimize it in the next step
+ * Execute SQL based on row-level filter.
  *
- * @description: Execute SQL based on row-level filter conditions
+ * <p> Note: Depending on the external Mysql environment, you can run it manually.
+ *
  * @author: HamaWhite
  */
 @Ignore
@@ -46,8 +40,7 @@ public class ExecuteRowFilterTest extends AbstractBasicTest {
                 {10005, "Edward", 104, "shanghai"},
                 {10006, "Jack", 103, "shanghai"}
         };
-        List<Row> rowList = securityContext.execute(sql, expected.length);
-        assertExecuteResult(expected, rowList);
+        executeRowFilter(sql, expected);
     }
 
 
@@ -77,24 +70,5 @@ public class ExecuteRowFilterTest extends AbstractBasicTest {
                 {10004, "John", 103, "hangzhou"}
         };
         executeRowFilter(USER_B, sql, expected);
-    }
-
-    private void executeRowFilter(String username, String sql, Object[][] expected) {
-        List<Row> rowList = securityContext.execute(username, sql, expected.length);
-        assertExecuteResult(expected, rowList);
-    }
-
-    private void assertExecuteResult(Object[][] expectedArray, List<Row> actualList) {
-        Object[][] actualArray = actualList.stream()
-                .map(e -> {
-                    Object[] array = new Object[e.getArity()];
-                    for (int pos = 0; pos < e.getArity(); pos++) {
-                        array[pos] = e.getField(pos);
-                    }
-                    return array;
-                }).collect(Collectors.toList())
-                .toArray(new Object[0][0]);
-
-        assertThat(actualArray).isEqualTo(expectedArray);
     }
 }

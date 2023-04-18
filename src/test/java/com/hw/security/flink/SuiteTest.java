@@ -2,8 +2,8 @@ package com.hw.security.flink;
 
 import com.hw.security.flink.common.CommonTest;
 import com.hw.security.flink.execute.ExecuteRowFilterTest;
-import com.hw.security.flink.rewritten.RewrittenDataMaskTest;
-import com.hw.security.flink.rewritten.RewrittenRowFilterTest;
+import com.hw.security.flink.rewrite.RewriteDataMaskTest;
+import com.hw.security.flink.rewrite.RewriteRowFilterTest;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -14,8 +14,8 @@ import org.junit.runners.Suite;
 @RunWith(Suite.class)
 @Suite.SuiteClasses({CommonTest.class
         , PolicyManagerTest.class
-        , RewrittenRowFilterTest.class
-        , RewrittenDataMaskTest.class
+        , RewriteRowFilterTest.class
+        , RewriteDataMaskTest.class
         , ExecuteRowFilterTest.class})
 public class SuiteTest {
 
