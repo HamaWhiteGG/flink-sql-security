@@ -1,6 +1,7 @@
-package com.hw.security.flink.util;
+package com.hw.security.flink;
 
 import com.hw.security.flink.model.DataMaskType;
+import junit.framework.TestCase;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -8,14 +9,16 @@ import java.util.Collections;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /**
- * @description: DataMaskUtilsTest
+ * @description: PolicyManagerTest
  * @author: HamaWhite
  */
-public class DataMaskUtilsTest {
+public class PolicyManagerTest extends TestCase {
+
+    private PolicyManager policyManager =new PolicyManager();
 
     @Test
     public void testGetDataMaskType() {
-        DataMaskType ret = DataMaskUtils.getDataMaskType("MASK_HASH");
+        DataMaskType ret = policyManager.getDataMaskType("MASK_HASH");
 
         assertThat(ret).isNotNull();
         assertThat(ret.getItemId()).isEqualTo(4L);
