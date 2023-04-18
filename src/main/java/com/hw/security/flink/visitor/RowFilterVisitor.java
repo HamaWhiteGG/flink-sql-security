@@ -1,9 +1,10 @@
-package com.hw.security.flink;
+package com.hw.security.flink.visitor;
 
 import com.google.common.collect.ImmutableList;
+import com.hw.security.flink.SecurityContext;
+import com.hw.security.flink.visitor.basic.AbstractBasicVisitor;
 import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.sql.util.SqlBasicVisitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,17 +14,12 @@ import java.util.Optional;
  * @description: RowFilterVisitor
  * @author: HamaWhite
  */
-public class RowFilterVisitor extends SqlBasicVisitor<Void> {
+public class RowFilterVisitor extends AbstractBasicVisitor {
 
     private static final Logger LOG = LoggerFactory.getLogger(RowFilterVisitor.class);
 
-    private final SecurityContext context;
-
-    private final String username;
-
     public RowFilterVisitor(SecurityContext context, String username) {
-        this.context = context;
-        this.username = username;
+        super(context, username);
     }
 
     @Override
@@ -50,7 +46,7 @@ public class RowFilterVisitor extends SqlBasicVisitor<Void> {
             String tableName = from.toString();
             // the table name is used as an alias for join
             String tableAlias = fromJoin ? tableName : null;
-            return addPermission(where, tableName, tableAlias);
+            return addRowFilter(where, tableName, tableAlias);
         } else if (from instanceof SqlJoin) {
             SqlJoin sqlJoin = (SqlJoin) from;
             // support recursive processing, such as join for three tables, process left sqlNode
@@ -69,7 +65,7 @@ public class RowFilterVisitor extends SqlBasicVisitor<Void> {
             }
             String tableName = tableNodes[0].toString();
             String tableAlias = tableNodes[1].toString();
-            return addPermission(where, tableName, tableAlias);
+            return addRowFilter(where, tableName, tableAlias);
         }
         return where;
     }
@@ -77,24 +73,27 @@ public class RowFilterVisitor extends SqlBasicVisitor<Void> {
     /**
      * Add row-level filtering based on user-configured permission points
      */
-    private SqlNode addPermission(SqlNode where, String tableName, String tableAlias) {
-        Optional<SqlBasicCall> permissionsOptional = context.queryPermissions(username, tableName);
+    private SqlNode addRowFilter(SqlNode where, String tableName, String tableAlias) {
+        Optional<String> condition = policyManager.getRowFilterCondition(username
+                , securityContext.getCurrentCatalog()
+                , securityContext.getCurrentDatabase()
+                , tableName);
 
-        // add an alias
-        if (permissionsOptional.isPresent()) {
-            SqlBasicCall permissions = permissionsOptional.get();
+        if (condition.isPresent()) {
+            SqlBasicCall sqlBasicCall = (SqlBasicCall)securityContext.parseExpression(condition.get());
             if (tableAlias != null) {
-                ImmutableList<String> namesList = ImmutableList.of(tableAlias, permissions.getOperands()[0].toString());
-                permissions.getOperands()[0] = new SqlIdentifier(namesList
+                ImmutableList<String> namesList = ImmutableList.of(tableAlias, sqlBasicCall.getOperands()[0].toString());
+                sqlBasicCall.getOperands()[0] = new SqlIdentifier(namesList
                         , null
                         , new SqlParserPos(0, 0)
                         , null
                 );
             }
-            return buildWhereClause(where, permissions);
+            return buildWhereClause(where, sqlBasicCall);
         }
         return buildWhereClause(where, null);
     }
+
 
     /**
      * Rebuild the where clause
