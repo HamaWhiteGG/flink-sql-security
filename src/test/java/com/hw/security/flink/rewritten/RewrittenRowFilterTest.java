@@ -10,12 +10,13 @@ import org.slf4j.LoggerFactory;
 import static org.junit.Assert.assertEquals;
 
 /**
- * @description: Rewrite SQL based on row-level filter conditions
+ * Rewrite SQL based on row-level filter conditions
+ *
  * @author: HamaWhite
  */
-public class RowFilterTest extends AbstractBasicTest {
+public class RewrittenRowFilterTest extends AbstractBasicTest {
 
-    private static final Logger LOG = LoggerFactory.getLogger(RowFilterTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RewrittenRowFilterTest.class);
 
     @BeforeClass
     public static void init() {
@@ -92,8 +93,26 @@ public class RowFilterTest extends AbstractBasicTest {
      */
     @Test
     public void testSelectWhereGroupBy() {
-        String inputSql = "SELECT customer_name, count(*) AS cnt FROM orders WHERE price > 45.0 GROUP BY customer_name";
-        String expected = "SELECT customer_name, COUNT(*) AS cnt FROM orders WHERE price > 45.0 AND region = 'beijing' GROUP BY customer_name";
+        String inputSql = "SELECT                   " +
+                "       customer_name              ," +
+                "       count(*) AS cnt             " +
+                "FROM                               " +
+                "       orders                      " +
+                "WHERE                              " +
+                "       price > 45.0                " +
+                "GROUP BY                           " +
+                "       customer_name               ";
+
+        String expected = "SELECT                   " +
+                "       customer_name              ," +
+                "       COUNT(*) AS cnt             " +
+                "FROM                               " +
+                "       orders                      " +
+                "WHERE                              " +
+                "       price > 45.0                " +
+                "       AND region = 'beijing'      " +
+                "GROUP BY                           " +
+                "       customer_name";
 
         testApplyRowFilter(USER_A, inputSql, expected);
     }
@@ -218,8 +237,12 @@ public class RowFilterTest extends AbstractBasicTest {
 
     private void testApplyRowFilter(String username, String inputSql, String expectedSql) {
         String resultSql = securityContext.applyRowFilter(username, inputSql);
+        resultSql = resultSql.replace("\n", " ")
+                .replace("\\s+", " ");
         // replace \n with spaces and remove single apostrophes
-        resultSql = resultSql.replace("\n", " ").replace("`", "");
+        resultSql = resultSql.replace("\n", " ")
+                .replace("\\s+", " ")
+                .replace("`", "");
 
         LOG.info("Input  SQL: {}", inputSql);
         LOG.info("Result SQL: {}\n", resultSql);

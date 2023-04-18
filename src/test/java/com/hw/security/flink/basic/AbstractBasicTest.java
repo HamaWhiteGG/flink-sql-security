@@ -1,9 +1,12 @@
 package com.hw.security.flink.basic;
 
+import apache.flink.table.catalog.hive.HiveTestUtils;
 import com.hw.security.flink.PolicyManager;
 import com.hw.security.flink.SecurityContext;
 import com.hw.security.flink.policy.DataMaskPolicy;
 import com.hw.security.flink.policy.RowFilterPolicy;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
 /**
@@ -12,8 +15,9 @@ import org.junit.BeforeClass;
  */
 public abstract class AbstractBasicTest {
 
-    private static final String CATALOG_NAME = "default_catalog";
-    private static final String DATABASE = "default_database";
+    private static final String CATALOG_NAME = "hive";
+    private static final String HIVE_VERSION = "3.1.2";
+    private static final String DATABASE = "default";
 
     protected static final String USER_A = "user_A";
     protected static final String USER_B = "user_B";
@@ -24,12 +28,26 @@ public abstract class AbstractBasicTest {
 
     protected static PolicyManager policyManager;
     protected static SecurityContext securityContext;
-
+    private static HiveCatalog hiveCatalog;
 
     @BeforeClass
     public static void setup() {
         policyManager = new PolicyManager();
+        // use hive catalog, so that flink can use hive's data masking function,  such as mask_hash, mask_first_n
+        hiveCatalog = HiveTestUtils.createHiveCatalog(CATALOG_NAME, DATABASE, HIVE_VERSION);
+        hiveCatalog.open();
         securityContext = new SecurityContext(policyManager);
+        securityContext.useCatalog(hiveCatalog);
+
+        securityContext.execute(String.format("LOAD MODULE hive WITH ('hive-version' = '%s')",HIVE_VERSION));
+    }
+
+    @AfterClass
+    public static void closeCatalog() {
+        if (hiveCatalog != null) {
+            hiveCatalog.close();
+        }
+        HiveTestUtils.deleteTemporaryFolder();
     }
 
     public static RowFilterPolicy rowFilterPolicy(String username, String tableName, String condition) {
@@ -74,7 +92,7 @@ public abstract class AbstractBasicTest {
                 "       order_date          TIMESTAMP(0)                 ," +
                 "       customer_name       STRING                       ," +
                 "       product_id          INT                          ," +
-                "       price               DECIMAL(10, 5)               ," +
+                "       price               DECIMAL(10, 1)               ," +
                 "       order_status        BOOLEAN                      ," +
                 "       region              STRING                        " +
                 ") WITH ( " +
@@ -86,27 +104,6 @@ public abstract class AbstractBasicTest {
                 "       'server-time-zone' = 'Asia/Shanghai' ," +
                 "       'database-name' = 'demo'             ," +
                 "       'table-name'    = '" + TABLE_ORDERS + "' " +
-                ")"
-        );
-    }
-
-
-    /**
-     * Create mysql cdc table print_sink
-     */
-    protected static void createTableOfPrintSink() {
-        securityContext.execute("DROP TABLE IF EXISTS print_sink ");
-
-        securityContext.execute("CREATE TABLE IF NOT EXISTS print_sink (" +
-                "       order_id            INT PRIMARY KEY NOT ENFORCED ," +
-                "       order_date          TIMESTAMP(0)                 ," +
-                "       customer_name       STRING                       ," +
-                "       product_id          INT                          ," +
-                "       price               DECIMAL(10, 5)               ," +
-                "       order_status        BOOLEAN                      ," +
-                "       region              STRING                        " +
-                ") WITH ( " +
-                "       'connector' = 'print'            " +
                 ")"
         );
     }
@@ -132,6 +129,26 @@ public abstract class AbstractBasicTest {
                 "       'server-time-zone' = 'Asia/Shanghai' ," +
                 "       'database-name' = 'demo'             ," +
                 "       'table-name'    = '" + TABLE_SHIPMENTS + "' " +
+                ")"
+        );
+    }
+
+    /**
+     * Create mysql cdc table print_sink
+     */
+    protected static void createTableOfPrintSink() {
+        securityContext.execute("DROP TABLE IF EXISTS print_sink ");
+
+        securityContext.execute("CREATE TABLE IF NOT EXISTS print_sink (" +
+                "       order_id            INT PRIMARY KEY NOT ENFORCED ," +
+                "       order_date          TIMESTAMP(0)                 ," +
+                "       customer_name       STRING                       ," +
+                "       product_id          INT                          ," +
+                "       price               DECIMAL(10, 5)               ," +
+                "       order_status        BOOLEAN                      ," +
+                "       region              STRING                        " +
+                ") WITH ( " +
+                "       'connector' = 'print'            " +
                 ")"
         );
     }

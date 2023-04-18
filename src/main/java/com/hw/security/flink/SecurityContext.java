@@ -4,29 +4,33 @@ import com.hw.security.flink.model.ColumnEntity;
 import com.hw.security.flink.model.TableEntity;
 import com.hw.security.flink.visitor.DataMaskVisitor;
 import com.hw.security.flink.visitor.RowFilterVisitor;
-import lombok.SneakyThrows;
-import org.apache.calcite.sql.SqlBasicCall;
+import javassist.*;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.*;
+import org.apache.flink.table.api.Schema.UnresolvedColumn;
+import org.apache.flink.table.api.Schema.UnresolvedComputedColumn;
+import org.apache.flink.table.api.Schema.UnresolvedMetadataColumn;
+import org.apache.flink.table.api.Schema.UnresolvedPhysicalColumn;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
+import org.apache.flink.table.catalog.AbstractCatalog;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.planner.delegation.ParserImpl;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
-
-import org.apache.flink.table.api.Schema.*;
 
 /**
  * @description: SecurityContext
@@ -42,6 +46,27 @@ public class SecurityContext {
 
     private final PolicyManager policyManager;
 
+    static {
+        try {
+            ClassPool classPool = ClassPool.getDefault();
+            CtClass ctClass = classPool.getCtClass("org.apache.calcite.sql.SqlSelect");
+
+            // add field custom, the default value is false
+            CtField field = new CtField(CtClass.booleanType, "custom", ctClass);
+            ctClass.addField(field, CtField.Initializer.constant(false));
+            // add set method
+            CtMethod setMethod = CtNewMethod.setter("setCustom", field);
+            ctClass.addMethod(setMethod);
+            // add get method
+            CtMethod getMethod = CtNewMethod.getter("isCustom", field);
+            ctClass.addMethod(getMethod);
+            // load class
+            ctClass.toClass();
+        } catch (Exception e) {
+            throw new SecurityException("Dynamic add field method exception.", e);
+        }
+    }
+
 
     public SecurityContext(PolicyManager policyManager) {
         this.policyManager = policyManager;
@@ -52,14 +77,10 @@ public class SecurityContext {
 
     private void initTableEnvironment() {
         Configuration configuration = new Configuration();
-
-        int port = generatePort();
-        configuration.setInteger("rest.port", port);
-        LOG.info("WebUI is http://127.0.0.1:{}", port);
-        configuration.setBoolean("table.dynamic-table-options.enabled", true);
+        configuration.setString(RestOptions.BIND_PORT, "8081-8189");
 
         try (StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(configuration)) {
-            env.enableCheckpointing(3 * 1000L).setParallelism(1);
+            env.setParallelism(1);
 
             EnvironmentSettings settings = EnvironmentSettings.newInstance()
                     .inStreamingMode()
@@ -67,8 +88,15 @@ public class SecurityContext {
             this.tableEnv = (TableEnvironmentImpl) StreamTableEnvironment.create(env, settings);
 
         } catch (Exception e) {
-            throw new FlinkRuntimeException("init local flink execution environment error", e);
+            throw new FlinkRuntimeException("Init local flink execution environment error", e);
         }
+    }
+
+    public void useCatalog(AbstractCatalog catalog) {
+        if (!tableEnv.getCatalog(catalog.getName()).isPresent()) {
+            tableEnv.registerCatalog(catalog.getName(), catalog);
+        }
+        tableEnv.useCatalog(catalog.getName());
     }
 
     /**
@@ -100,27 +128,45 @@ public class SecurityContext {
     }
 
 
+    /**
+     * Parses a SQL expression into a {@link SqlNode}
+     */
     public SqlNode parseExpression(String sqlExpression) {
         return parser.parseExpression(sqlExpression);
+    }
+
+    public List<Row> execute(String singleSql) {
+        return execute(singleSql, 10);
     }
 
     /**
      * Execute the single sql without user permissions
      */
-    public TableResult execute(String singleSql) {
+    public List<Row> execute(String singleSql, int size) {
         LOG.info("Execute SQL: {}", singleSql);
-        return tableEnv.executeSql(singleSql);
+        TableResult tableResult = tableEnv.executeSql(singleSql);
+        return fetchRows(tableResult.collect(), size);
     }
+
+    private List<Row> fetchRows(Iterator<Row> iter, int size) {
+        List<Row> rowList = new ArrayList<>(size);
+        while (size > 0 && iter.hasNext()) {
+            rowList.add(iter.next());
+            size--;
+        }
+        return rowList;
+    }
+
 
     /**
      * Execute the single sql with user permissions
      */
-    public TableResult execute(String username, String singleSql) {
+    public List<Row> execute(String username, String singleSql, int size) {
         LOG.info("Execute origin SQL: {}", singleSql);
         String rowFilterSql = applyRowFilter(username, singleSql);
         LOG.info("Execute row-filter SQL: {}", rowFilterSql);
         LOG.debug("Explain row-filter SQL: {}", tableEnv.explainSql(rowFilterSql));
-        return tableEnv.executeSql(rowFilterSql);
+        return execute(rowFilterSql, size);
     }
 
     private Catalog getCatalog(String catalogName) {
@@ -186,10 +232,5 @@ public class SecurityContext {
         } else {
             throw new IllegalArgumentException("Unsupported column type: " + column);
         }
-    }
-
-    @SneakyThrows
-    private int generatePort() {
-        return SecureRandom.getInstanceStrong().nextInt((8188 - 8082) + 1) + 8082;
     }
 }

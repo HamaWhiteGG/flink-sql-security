@@ -9,12 +9,13 @@ import org.slf4j.LoggerFactory;
 import static org.junit.Assert.assertEquals;
 
 /**
- * @description: DataMaskTest
+ * Rewrite SQL based on data mask conditions
+ *
  * @author: HamaWhite
  */
-public class DataMaskTest extends AbstractBasicTest {
+public class RewrittenDataMaskTest extends AbstractBasicTest {
 
-    private static final Logger LOG = LoggerFactory.getLogger(DataMaskTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RewrittenDataMaskTest.class);
 
     @BeforeClass
     public static void init() {
@@ -64,11 +65,20 @@ public class DataMaskTest extends AbstractBasicTest {
     @Test
     public void testJoin() {
         String inputSql = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id";
-//        String expected = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.region = 'beijing'";
+        String expected = "SELECT o.*, p.name, p.description FROM orders AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.region = 'beijing'";
 
-        securityContext.applyDataMask(USER_A,inputSql);
+        testApplyDataMask(USER_A, inputSql, expected);
     }
 
+    /**
+     * The products and orders two tables are left joined, and the left table comes from a sub-query
+     */
+    @Test
+    public void testJoinSubQueryWhere() {
+        String inputSql = "SELECT o.*, p.name, p.description FROM (SELECT * FROM orders WHERE order_status = FALSE) AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.price > 45.0 OR o.customer_name = 'John'";
+        String expected = "SELECT o.*, p.name, p.description FROM (SELECT * FROM orders WHERE order_status = FALSE AND region = 'beijing') AS o LEFT JOIN products AS p ON o.product_id = p.id WHERE o.price > 45.0 OR o.customer_name = 'John'";
+        testApplyDataMask(USER_A, inputSql, expected);
+    }
 
 
     private void testApplyDataMask(String username, String inputSql, String expectedSql) {
