@@ -35,7 +35,7 @@ public class CommonTest extends AbstractBasicTest {
                 new ColumnEntity("order_date", "TIMESTAMP(0)"),
                 new ColumnEntity("customer_name", "STRING"),
                 new ColumnEntity("product_id", "INT"),
-                new ColumnEntity("price", "DECIMAL(10, 5)"),
+                new ColumnEntity("price", "DECIMAL(10, 1)"),
                 new ColumnEntity("order_status", "BOOLEAN"),
                 new ColumnEntity("region", "STRING")
         );

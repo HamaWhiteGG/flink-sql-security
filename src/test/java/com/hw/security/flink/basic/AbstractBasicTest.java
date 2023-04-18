@@ -6,14 +6,26 @@ import com.hw.security.flink.SecurityContext;
 import com.hw.security.flink.policy.DataMaskPolicy;
 import com.hw.security.flink.policy.RowFilterPolicy;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
+import org.apache.flink.types.Row;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @description: AbstractBasicTest
  * @author: HamaWhite
  */
 public abstract class AbstractBasicTest {
+
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractBasicTest.class);
+
 
     private static final String CATALOG_NAME = "hive";
     private static final String HIVE_VERSION = "3.1.2";
@@ -39,7 +51,7 @@ public abstract class AbstractBasicTest {
         securityContext = new SecurityContext(policyManager);
         securityContext.useCatalog(hiveCatalog);
 
-        securityContext.execute(String.format("LOAD MODULE hive WITH ('hive-version' = '%s')",HIVE_VERSION));
+        securityContext.execute(String.format("LOAD MODULE hive WITH ('hive-version' = '%s')", HIVE_VERSION));
     }
 
     @AfterClass
@@ -79,6 +91,58 @@ public abstract class AbstractBasicTest {
                 "       'table-name'    = '" + TABLE_PRODUCTS + "' " +
                 ")"
         );
+    }
+
+    protected void executeRowFilter(String sql, Object[][] expected) {
+        List<Row> rowList = securityContext.execute(sql, expected.length);
+        assertExecuteResult(expected, rowList);
+    }
+
+    protected void executeRowFilter(String username, String sql, Object[][] expected) {
+        List<Row> rowList = securityContext.execute(username, sql, expected.length);
+        assertExecuteResult(expected, rowList);
+    }
+
+    protected void assertExecuteResult(Object[][] expectedArray, List<Row> actualList) {
+        Object[][] actualArray = actualList.stream()
+                .map(e -> {
+                    Object[] array = new Object[e.getArity()];
+                    for (int pos = 0; pos < e.getArity(); pos++) {
+                        array[pos] = e.getField(pos);
+                    }
+                    return array;
+                }).collect(Collectors.toList())
+                .toArray(new Object[0][0]);
+
+        assertThat(actualArray).isEqualTo(expectedArray);
+    }
+
+    protected void rewriteDataMask(String username, String inputSql, String expectedSql) {
+        String resultSql = securityContext.rewriteDataMask(username, inputSql);
+        assertRewriteResult(inputSql, expectedSql, resultSql);
+    }
+
+    protected void rewriteRowFilter(String username, String inputSql, String expectedSql) {
+        String resultSql = securityContext.rewriteRowFilter(username, inputSql);
+        assertRewriteResult(inputSql, expectedSql, resultSql);
+    }
+
+    protected void assertRewriteResult(String inputSql, String expectedSql, String resultSql) {
+        inputSql = minifySql(inputSql);
+        expectedSql = minifySql(expectedSql);
+
+        resultSql = resultSql.replace("\n", " ").replace("`", "");
+        LOG.info("Input  SQL: {}", inputSql);
+        LOG.info("Result SQL: {}\n", resultSql);
+        assertEquals(expectedSql, resultSql);
+    }
+
+    private String minifySql(String sql) {
+        return sql.replaceAll("\\s+", " ")
+                .replace(" ,", ",")
+                .replace("( ", "(")
+                .replace(" )", ")")
+                .trim();
     }
 
     /**

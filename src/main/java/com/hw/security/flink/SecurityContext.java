@@ -100,9 +100,9 @@ public class SecurityContext {
     }
 
     /**
-     * Add row-level filter conditions and return new SQL
+     * Add row-level filter and return new SQL
      */
-    public String applyRowFilter(String username, String singleSql) {
+    public String rewriteRowFilter(String username, String singleSql) {
         // parsing sql and return the abstract syntax tree
         SqlNode sqlNode = parser.parseSql(singleSql);
 
@@ -116,7 +116,7 @@ public class SecurityContext {
     /**
      * Add column masking and return new SQL
      */
-    public String applyDataMask(String username, String singleSql) {
+    public String rewriteDataMask(String username, String singleSql) {
         // parsing sql and return the abstract syntax tree
         SqlNode sqlNode = parser.parseSql(singleSql);
 
@@ -163,7 +163,7 @@ public class SecurityContext {
      */
     public List<Row> execute(String username, String singleSql, int size) {
         LOG.info("Execute origin SQL: {}", singleSql);
-        String rowFilterSql = applyRowFilter(username, singleSql);
+        String rowFilterSql = rewriteRowFilter(username, singleSql);
         LOG.info("Execute row-filter SQL: {}", rowFilterSql);
         LOG.debug("Explain row-filter SQL: {}", tableEnv.explainSql(rowFilterSql));
         return execute(rowFilterSql, size);
