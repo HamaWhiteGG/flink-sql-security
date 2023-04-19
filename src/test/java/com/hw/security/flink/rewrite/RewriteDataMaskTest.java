@@ -80,4 +80,45 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
         
         rewriteDataMask(USER_A, sql, expected);
     }
+
+    /**
+     * The two tables of products and orders are left joined.
+     * <p> products have an alias p, order has no alias
+     */
+    @Test
+    public void testJoin() {
+        String sql = "SELECT                        " +
+                "       orders.*                   ," +
+                "       p.name                     ," +
+                "       p.description               " +
+                "FROM                               " +
+                "       orders                      " +
+                "LEFT JOIN                          " +
+                "       products AS p               " +
+                "ON                                 " +
+                "       orders.product_id = p.id    ";
+
+        String expected = "SELECT                   " +
+                "       orders.*                   ," +
+                "       p.name                     ," +
+                "       p.description               " +
+                "FROM (                             " +
+                "       SELECT                      " +
+                "               order_id           ," +
+                "               order_date         ," +
+                "               customer_name      ," +
+                "               product_id         ," +
+                "               CAST(mask_hash(price) AS DECIMAL(10, 1)) AS price, " +
+                "               order_status       ," +
+                "               region              " +
+                "       FROM                        " +
+                "               orders              " +
+                "     ) AS orders                   " +
+                "LEFT JOIN                          " +
+                "       products AS p               " +
+                "ON                                 " +
+                "       orders.product_id = p.id    ";
+
+        rewriteDataMask(USER_A, sql, expected);
+    }
 }
