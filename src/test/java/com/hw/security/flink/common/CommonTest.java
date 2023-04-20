@@ -45,7 +45,16 @@ public class CommonTest extends AbstractBasicTest {
 
 
     /**
-     * Uppercase letters are converted to "X", lowercase letters are converted to "x", numbers are converted to "n"
+     * Call the system function that comes with Hive in FlinkSQL (under the default database),
+     * <p>so that Hive UDF can be reused when desensitizing Flink SQL data.
+     *
+     * <p>Note:
+     * <ol>
+     *  <li>Ranger's masking strategy is also implemented by calling Hive's UDF.
+     *  <li>Uppercase letters are converted to "X"
+     *  <li>Lowercase letters are converted to "x"
+     *  <li>Numbers are converted to "n"
+     * </ol>
      */
     @Test
     public void testHiveSystemFunction() {

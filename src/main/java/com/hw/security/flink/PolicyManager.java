@@ -1,7 +1,7 @@
 package com.hw.security.flink;
 
 import com.alibaba.fastjson2.JSON;
-import com.hw.security.flink.model.DataMaskType;
+import com.hw.security.flink.enums.DataMaskType;
 import com.hw.security.flink.policy.DataMaskPolicy;
 import com.hw.security.flink.policy.RowFilterPolicy;
 import com.hw.security.flink.util.ResourceReader;
@@ -12,7 +12,8 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * @description: PolicyManager
+ * The manager of row-level filter and data masking policies,which can be connected to the policies in ranger later.
+ *
  * @author: HamaWhite
  */
 public class PolicyManager {
@@ -23,7 +24,7 @@ public class PolicyManager {
 
     private final List<DataMaskPolicy> dataMaskPolicyList;
 
-    private List<DataMaskType> maskTypeList;
+    private final List<DataMaskType> maskTypeList;
 
     public PolicyManager() {
         this.rowFilterPolicyList = new LinkedList<>();
@@ -35,11 +36,6 @@ public class PolicyManager {
         } catch (Exception e) {
             throw new SecurityException(String.format("read file %s error", DATA_MASK_TYPES_FILE), e);
         }
-    }
-
-    public PolicyManager(List<RowFilterPolicy> rowFilterPolicyList, List<DataMaskPolicy> dataMaskPolicyList) {
-        this.rowFilterPolicyList = rowFilterPolicyList;
-        this.dataMaskPolicyList = dataMaskPolicyList;
     }
 
     public Optional<String> getRowFilterCondition(String username, String catalogName, String database, String tableName) {
