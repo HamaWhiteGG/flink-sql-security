@@ -1,4 +1,4 @@
-package com.hw.security.flink.model;
+package com.hw.security.flink.enums;
 
 import lombok.Data;
 

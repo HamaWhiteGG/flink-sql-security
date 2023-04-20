@@ -1,7 +1,6 @@
 package com.hw.security.flink;
 
-import com.hw.security.flink.model.DataMaskType;
-import junit.framework.TestCase;
+import com.hw.security.flink.enums.DataMaskType;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -12,9 +11,9 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
  * @description: PolicyManagerTest
  * @author: HamaWhite
  */
-public class PolicyManagerTest extends TestCase {
+public class PolicyManagerTest {
 
-    private PolicyManager policyManager =new PolicyManager();
+    private final PolicyManager policyManager =new PolicyManager();
 
     @Test
     public void testGetDataMaskType() {

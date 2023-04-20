@@ -19,7 +19,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 
 /**
- * @description: AbstractBasicTest
+ * Start the local hive metastore and build a test for the Hive catalog.
+ *
  * @author: HamaWhite
  */
 public abstract class AbstractBasicTest {
@@ -70,36 +71,23 @@ public abstract class AbstractBasicTest {
         return new DataMaskPolicy(username, CATALOG_NAME, DATABASE, tableName, columnName, condition);
     }
 
-    /**
-     * Create mysql cdc table products
-     */
-    protected static void createTableOfProducts() {
-        securityContext.execute("DROP TABLE IF EXISTS " + TABLE_PRODUCTS);
-
-        securityContext.execute("CREATE TABLE IF NOT EXISTS " + TABLE_PRODUCTS + " (" +
-                "       id                  INT PRIMARY KEY NOT ENFORCED ," +
-                "       name                STRING                       ," +
-                "       description         STRING                        " +
-                ") WITH ( " +
-                "       'connector' = 'mysql-cdc'            ," +
-                "       'hostname'  = '192.168.90.150'       ," +
-                "       'port'      = '3306'                 ," +
-                "       'username'  = 'root'                 ," +
-                "       'password'  = 'root@123456'          ," +
-                "       'server-time-zone' = 'Asia/Shanghai' ," +
-                "       'database-name' = 'demo'             ," +
-                "       'table-name'    = '" + TABLE_PRODUCTS + "' " +
-                ")"
-        );
-    }
-
-    protected void executeRowFilter(String sql, Object[][] expected) {
+    protected void execute(String sql, Object[][] expected) {
         List<Row> rowList = securityContext.execute(sql, expected.length);
         assertExecuteResult(expected, rowList);
     }
 
     protected void executeRowFilter(String username, String sql, Object[][] expected) {
-        List<Row> rowList = securityContext.execute(username, sql, expected.length);
+        List<Row> rowList = securityContext.executeRowFilter(username, sql, expected.length);
+        assertExecuteResult(expected, rowList);
+    }
+
+    protected void executeDataMask(String username, String sql, Object[][] expected) {
+        List<Row> rowList = securityContext.executeDataMask(username, sql, expected.length);
+        assertExecuteResult(expected, rowList);
+    }
+
+    protected void mixedExecute(String username, String sql, Object[][] expected) {
+        List<Row> rowList = securityContext.mixedExecute(username, sql, expected.length);
         assertExecuteResult(expected, rowList);
     }
 
@@ -117,13 +105,18 @@ public abstract class AbstractBasicTest {
         assertThat(actualArray).isEqualTo(expectedArray);
     }
 
+    protected void rewriteRowFilter(String username, String inputSql, String expectedSql) {
+        String resultSql = securityContext.rewriteRowFilter(username, inputSql);
+        assertRewriteResult(inputSql, expectedSql, resultSql);
+    }
+
     protected void rewriteDataMask(String username, String inputSql, String expectedSql) {
         String resultSql = securityContext.rewriteDataMask(username, inputSql);
         assertRewriteResult(inputSql, expectedSql, resultSql);
     }
 
-    protected void rewriteRowFilter(String username, String inputSql, String expectedSql) {
-        String resultSql = securityContext.rewriteRowFilter(username, inputSql);
+    protected void mixedRewrite(String username, String inputSql, String expectedSql) {
+        String resultSql = securityContext.mixedRewrite(username, inputSql);
         assertRewriteResult(inputSql, expectedSql, resultSql);
     }
 
@@ -137,6 +130,10 @@ public abstract class AbstractBasicTest {
         assertEquals(expectedSql, resultSql);
     }
 
+
+    /**
+     * Simplify some problems with indentation and spaces
+     */
     private String minifySql(String sql) {
         return sql.replaceAll("\\s+", " ")
                 .replace(" ,", ",")
@@ -168,6 +165,29 @@ public abstract class AbstractBasicTest {
                 "       'server-time-zone' = 'Asia/Shanghai' ," +
                 "       'database-name' = 'demo'             ," +
                 "       'table-name'    = '" + TABLE_ORDERS + "' " +
+                ")"
+        );
+    }
+
+    /**
+     * Create mysql cdc table products
+     */
+    protected static void createTableOfProducts() {
+        securityContext.execute("DROP TABLE IF EXISTS " + TABLE_PRODUCTS);
+
+        securityContext.execute("CREATE TABLE IF NOT EXISTS " + TABLE_PRODUCTS + " (" +
+                "       id                  INT PRIMARY KEY NOT ENFORCED ," +
+                "       name                STRING                       ," +
+                "       description         STRING                        " +
+                ") WITH ( " +
+                "       'connector' = 'mysql-cdc'            ," +
+                "       'hostname'  = '192.168.90.150'       ," +
+                "       'port'      = '3306'                 ," +
+                "       'username'  = 'root'                 ," +
+                "       'password'  = 'root@123456'          ," +
+                "       'server-time-zone' = 'Asia/Shanghai' ," +
+                "       'database-name' = 'demo'             ," +
+                "       'table-name'    = '" + TABLE_PRODUCTS + "' " +
                 ")"
         );
     }
