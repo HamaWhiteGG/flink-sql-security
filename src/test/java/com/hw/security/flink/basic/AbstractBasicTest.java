@@ -81,6 +81,16 @@ public abstract class AbstractBasicTest {
         assertExecuteResult(expected, rowList);
     }
 
+    protected void executeDataMask(String username, String sql, Object[][] expected) {
+        List<Row> rowList = securityContext.executeDataMask(username, sql, expected.length);
+        assertExecuteResult(expected, rowList);
+    }
+
+    protected void mixedExecute(String username, String sql, Object[][] expected) {
+        List<Row> rowList = securityContext.mixedExecute(username, sql, expected.length);
+        assertExecuteResult(expected, rowList);
+    }
+
     protected void assertExecuteResult(Object[][] expectedArray, List<Row> actualList) {
         Object[][] actualArray = actualList.stream()
                 .map(e -> {
@@ -95,13 +105,18 @@ public abstract class AbstractBasicTest {
         assertThat(actualArray).isEqualTo(expectedArray);
     }
 
+    protected void rewriteRowFilter(String username, String inputSql, String expectedSql) {
+        String resultSql = securityContext.rewriteRowFilter(username, inputSql);
+        assertRewriteResult(inputSql, expectedSql, resultSql);
+    }
+
     protected void rewriteDataMask(String username, String inputSql, String expectedSql) {
         String resultSql = securityContext.rewriteDataMask(username, inputSql);
         assertRewriteResult(inputSql, expectedSql, resultSql);
     }
 
-    protected void rewriteRowFilter(String username, String inputSql, String expectedSql) {
-        String resultSql = securityContext.rewriteRowFilter(username, inputSql);
+    protected void mixedRewrite(String username, String inputSql, String expectedSql) {
+        String resultSql = securityContext.mixedRewrite(username, inputSql);
         assertRewriteResult(inputSql, expectedSql, resultSql);
     }
 

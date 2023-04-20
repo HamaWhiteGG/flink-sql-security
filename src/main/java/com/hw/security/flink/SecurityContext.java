@@ -135,7 +135,7 @@ public class SecurityContext {
     /**
      * Add row-level filter and column masking, then return new SQL.
      */
-    public String rewrite(String username, String singleSql) {
+    public String mixedRewrite(String username, String singleSql) {
         // parsing sql and return the abstract syntax tree
         SqlNode sqlNode = parser.parseSql(singleSql);
 
@@ -200,8 +200,8 @@ public class SecurityContext {
     /**
      * Execute the single sql with user row-level filter and data mask policies
      */
-    public List<Row> execute(String username, String singleSql, int size) {
-        return executeWithRewrite(username, singleSql, this::rewrite, size);
+    public List<Row> mixedExecute(String username, String singleSql, int size) {
+        return executeWithRewrite(username, singleSql, this::mixedRewrite, size);
     }
 
     private List<Row> fetchRows(Iterator<Row> iter, int size) {

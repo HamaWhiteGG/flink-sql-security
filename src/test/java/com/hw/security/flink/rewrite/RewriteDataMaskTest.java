@@ -26,7 +26,7 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
         createTableOfPrintSink();
 
         // add data mask policies
-        policyManager.addPolicy(dataMaskPolicy(USER_A, TABLE_ORDERS, "price","MASK_HASH"));
+        policyManager.addPolicy(dataMaskPolicy(USER_A, TABLE_ORDERS, "customer_name", "MASK"));
         policyManager.addPolicy(dataMaskPolicy(USER_A, TABLE_PRODUCTS, "name","MASK_SHOW_LAST_4"));
         policyManager.addPolicy(dataMaskPolicy(USER_B, TABLE_ORDERS, "customer_name","MASK_SHOW_FIRST_4"));
     }
@@ -45,9 +45,9 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
                 "       SELECT                      " +
                 "               order_id           ," +
                 "               order_date         ," +
-                "               customer_name      ," +
+                "               CAST(mask(customer_name) AS STRING) AS customer_name ," +
                 "               product_id         ," +
-                "               CAST(mask_hash(price) AS DECIMAL(10, 1)) AS price,  " +
+                "               price              ," +
                 "               order_status       ," +
                 "               region              " +
                 "       FROM                        " +
@@ -71,9 +71,9 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
                 "       SELECT                      " +
                 "               order_id           ," +
                 "               order_date         ," +
-                "               customer_name      ," +
+                "               CAST(mask(customer_name) AS STRING) AS customer_name ," +
                 "               product_id         ," +
-                "               CAST(mask_hash(price) AS DECIMAL(10, 1)) AS price,  " +
+                "               price              ," +
                 "               order_status       ," +
                 "               region              " +
                 "       FROM                        " +
@@ -97,9 +97,9 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
                 "       SELECT                      " +
                 "               order_id           ," +
                 "               order_date         ," +
-                "               customer_name      ," +
+                "               CAST(mask(customer_name) AS STRING) AS customer_name ," +
                 "               product_id         ," +
-                "               CAST(mask_hash(price) AS DECIMAL(10, 1)) AS price ," +
+                "               price              ," +
                 "               order_status       ," +
                 "               region              " +
                 "       FROM                        " +
@@ -150,9 +150,9 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
                 "       SELECT                      " +
                 "               order_id           ," +
                 "               order_date         ," +
-                "               customer_name      ," +
+                "               CAST(mask(customer_name) AS STRING) AS customer_name ," +
                 "               product_id         ," +
-                "               CAST(mask_hash(price) AS DECIMAL(10, 1)) AS price, " +
+                "               price              ," +
                 "               order_status       ," +
                 "               region              " +
                 "       FROM                        " +
@@ -206,9 +206,9 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
                 "               SELECT                  " +
                 "                       order_id       ," +
                 "                       order_date     ," +
-                "                       customer_name  ," +
+                "                       CAST(mask(customer_name) AS STRING) AS customer_name ," +
                 "                       product_id     ," +
-                "                       CAST(mask_hash(price) AS DECIMAL(10, 1)) AS price ," +
+                "                       price          ," +
                 "                       order_status   ," +
                 "                       region          " +
                 "               FROM                    " +
@@ -270,9 +270,9 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
                 "       SELECT                      " +
                 "               order_id           ," +
                 "               order_date         ," +
-                "               customer_name      ," +
+                "               CAST(mask(customer_name) AS STRING) AS customer_name ," +
                 "               product_id         ," +
-                "               CAST(mask_hash(price) AS DECIMAL(10, 1)) AS price, " +
+                "               price              ," +
                 "               order_status       ," +
                 "               region              " +
                 "       FROM                        " +
@@ -311,9 +311,9 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
                 "       SELECT                                      " +
                 "               order_id                           ," +
                 "               order_date                         ," +
-                "               customer_name                      ," +
+                "               CAST(mask(customer_name) AS STRING) AS customer_name ," +
                 "               product_id                         ," +
-                "               CAST(mask_hash(price) AS DECIMAL(10, 1)) AS price, " +
+                "               price                              ," +
                 "               order_status                       ," +
                 "               region                              " +
                 "       FROM                                        " +
@@ -343,9 +343,9 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
                 "               SELECT                              " +
                 "                       order_id                   ," +
                 "                       order_date                 ," +
-                "                       customer_name              ," +
+                "                       CAST(mask(customer_name) AS STRING) AS customer_name ," +
                 "                       product_id                 ," +
-                "                       CAST(mask_hash(price) AS DECIMAL(10, 1)) AS price, " +
+                "                       price                      ," +
                 "                       order_status               ," +
                 "                       region                      " +
                 "               FROM                                " +
