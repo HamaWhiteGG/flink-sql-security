@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.BinaryOperator;
 import java.util.stream.Collectors;
 
 /**
@@ -47,6 +48,10 @@ public class SecurityContext {
     private final PolicyManager policyManager;
 
     static {
+        /*
+          Use javassist to modify the bytecode to add the variable custom to org.apache.calcite.sql.SqlSelect,
+          which is used to mark whether SqlSelect is custom generated
+         */
         try {
             ClassPool classPool = ClassPool.getDefault();
             CtClass ctClass = classPool.getCtClass("org.apache.calcite.sql.SqlSelect");
@@ -106,7 +111,7 @@ public class SecurityContext {
         // parsing sql and return the abstract syntax tree
         SqlNode sqlNode = parser.parseSql(singleSql);
 
-        // add row-level filtering based on user-configured permission points
+        // add row-level filter and return a new abstract syntax tree
         RowFilterVisitor visitor = new RowFilterVisitor(this, username);
         sqlNode.accept(visitor);
 
@@ -120,13 +125,30 @@ public class SecurityContext {
         // parsing sql and return the abstract syntax tree
         SqlNode sqlNode = parser.parseSql(singleSql);
 
-        // add column masking based on user-configured permission points
+        // add data masking and return a new abstract syntax tree
         DataMaskVisitor visitor = new DataMaskVisitor(this, username);
         sqlNode.accept(visitor);
 
         return sqlNode.toString();
     }
 
+    /**
+     * Add row-level filter and column masking, then return new SQL.
+     */
+    public String rewrite(String username, String singleSql) {
+        // parsing sql and return the abstract syntax tree
+        SqlNode sqlNode = parser.parseSql(singleSql);
+
+        // add row-level filter and return a new abstract syntax tree
+        RowFilterVisitor rowFilterVisitor = new RowFilterVisitor(this, username);
+        sqlNode.accept(rowFilterVisitor);
+
+        // add data masking and return a new abstract syntax tree
+        DataMaskVisitor dataMaskVisitor = new DataMaskVisitor(this, username);
+        sqlNode.accept(dataMaskVisitor);
+
+        return sqlNode.toString();
+    }
 
     /**
      * Parses a SQL expression into a {@link SqlNode}
@@ -135,17 +157,51 @@ public class SecurityContext {
         return parser.parseExpression(sqlExpression);
     }
 
+    /**
+     * Execute a SQL directly, returns 10 rows by default
+     */
     public List<Row> execute(String singleSql) {
         return execute(singleSql, 10);
     }
 
     /**
-     * Execute the single sql without user permissions
+     * Execute the single sql directly, and return size rows
      */
     public List<Row> execute(String singleSql, int size) {
         LOG.info("Execute SQL: {}", singleSql);
         TableResult tableResult = tableEnv.executeSql(singleSql);
         return fetchRows(tableResult.collect(), size);
+    }
+
+    /**
+     * Execute the single sql with user rewrite policies
+     */
+    private List<Row> executeWithRewrite(String username, String originSql, BinaryOperator<String> rewriteFunction, int size) {
+        LOG.info("Origin SQL: {}", originSql);
+        String rewriteSql = rewriteFunction.apply(username, originSql);
+        LOG.info("Rewrite SQL: {}", rewriteSql);
+        return execute(rewriteSql, size);
+    }
+
+    /**
+     * Execute the single sql with user row-level filter policies
+     */
+    public List<Row> executeRowFilter(String username, String singleSql, int size) {
+        return executeWithRewrite(username, singleSql, this::rewriteRowFilter, size);
+    }
+
+    /**
+     * Execute the single sql with user data mask policies
+     */
+    public List<Row> executeDataMask(String username, String singleSql, int size) {
+        return executeWithRewrite(username, singleSql, this::rewriteDataMask, size);
+    }
+
+    /**
+     * Execute the single sql with user row-level filter and data mask policies
+     */
+    public List<Row> execute(String username, String singleSql, int size) {
+        return executeWithRewrite(username, singleSql, this::rewrite, size);
     }
 
     private List<Row> fetchRows(Iterator<Row> iter, int size) {
@@ -157,17 +213,6 @@ public class SecurityContext {
         return rowList;
     }
 
-
-    /**
-     * Execute the single sql with user permissions
-     */
-    public List<Row> execute(String username, String singleSql, int size) {
-        LOG.info("Execute origin SQL: {}", singleSql);
-        String rowFilterSql = rewriteRowFilter(username, singleSql);
-        LOG.info("Execute row-filter SQL: {}", rowFilterSql);
-        LOG.debug("Explain row-filter SQL: {}", tableEnv.explainSql(rowFilterSql));
-        return execute(rowFilterSql, size);
-    }
 
     private Catalog getCatalog(String catalogName) {
         return tableEnv.getCatalog(catalogName).orElseThrow(() ->

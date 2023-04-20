@@ -6,7 +6,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
- * Rewrite SQL based on row-level filter conditions
+ * Rewrite SQL based on row filter conditions
  *
  * @author: HamaWhite
  */
@@ -31,7 +31,6 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
         policyManager.addPolicy(rowFilterPolicy(USER_B, TABLE_ORDERS, "region = 'hangzhou'"));
     }
 
-
     /**
      * Only select
      */
@@ -44,7 +43,7 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
     }
 
     /**
-     * Different users configure different permission points
+     * Different users configure different policies
      */
     @Test
     public void testSelectDiffUser() {
