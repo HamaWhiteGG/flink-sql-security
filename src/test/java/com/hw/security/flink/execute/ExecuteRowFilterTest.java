@@ -6,7 +6,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 /**
- * Execute SQL based on row-level filter.
+ * Execute SQL based on row filter.
  *
  * <p> Note: Depending on the external Mysql environment, you can run it manually.
  *
@@ -40,7 +40,7 @@ public class ExecuteRowFilterTest extends AbstractBasicTest {
                 {10005, "Edward", 104, "shanghai"},
                 {10006, "Jack", 103, "shanghai"}
         };
-        executeRowFilter(sql, expected);
+        execute(sql, expected);
     }
 
 
