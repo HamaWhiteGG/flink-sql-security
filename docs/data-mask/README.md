@@ -92,7 +92,7 @@ SELECT * FROM orders
 主要通过Calcite提供的访问者模式自定义DataMaskVisitor来实现，遍历AST中所有的SqlSelect对象用子查询替换里面的输入表。
 下面详细描述替换输入表的步骤，整体流程如下图所示。
 
-![Data mask-rewrite the main process.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Row-level%20Filter-Rewrite%20the%20main%20process.png)
+![Data mask-rewrite the main process.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Data%20mask-Rewrite%20the%20main%20process.png)
 
 1. 遍历AST中SELECT语句。
 2. 判断是否自定义的SELECT语句(由下面步骤10生成)，是则跳转到步骤11，否则继续步骤3。
