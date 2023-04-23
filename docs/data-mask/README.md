@@ -1,7 +1,6 @@
-# Flink SQL 数据脱敏
+# FlinkSQL的数据脱敏解决方案及源码
 
-FlinkSQL的数据脱敏解决方案及源码，支持面向用户级别的数据脱敏访问控制，即特定用户只能访问到脱敏后的数据。
-此方案是实时领域Flink的解决方案，类似于离线数仓Hive中Ranger Column Masking方案。
+支持面向用户级别的数据脱敏访问控制，即特定用户只能访问到脱敏后的数据。此方案是实时领域Flink的解决方案，类似于离线数仓Hive中Ranger Column Masking方案。
 
 <br/>
 源码地址: https://github.com/HamaWhiteGG/flink-sql-security 
@@ -71,7 +70,7 @@ SELECT * FROM orders
 | 5 | SqlBasicCall | Implementation of SqlCall that keeps its operands in an array. |
 | 6 | SqlSelect | A SqlSelect is a node of a parse tree which represents a select statement, the parent class is SqlCall |
 
-![Calcite SqlNode diagrams.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Calcite%20SqlNode%20diagrams.png)
+<img src="https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Calcite%20SqlNode%20diagrams.png" alt="Calcite SqlNode diagrams.png"  style="width:70%;">
 
 #### 3.1.3 解决思路
 

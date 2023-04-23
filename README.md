@@ -16,9 +16,10 @@
 
 > 注: 如果用IntelliJ IDEA打开源码，请提前安装 **Manifold** 插件。
 
+<br/>
 
-如果希望进一步阅读技术细节，请查看系列文章:
-1. [FlinkSQL的行级权限决方案及源码](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/row-filter/README.md)
+**如果希望进一步阅读技术细节，请查看系列文章**:
+1. [FlinkSQL的行级权限解决方案及源码](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/row-filter/README.md)
 2. [FlinkSQL的数据脱敏解决方案及源码](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/data-mask/README.md)
 
 

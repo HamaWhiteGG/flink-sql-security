@@ -1,7 +1,6 @@
-# Flink SQL 行级权限
+# FlinkSQL的行级权限解决方案及源码
 
-FlinkSQL的行级权限解决方案及源码，支持面向用户级别的行级数据访问控制，即特定用户只能访问授权过的行，隐藏未授权的行数据。
-此方案是实时领域Flink的解决方案，类似于离线数仓Hive中Ranger Row-level Filter方案。
+支持面向用户级别的行级数据访问控制，即特定用户只能访问授权过的行，隐藏未授权的行数据。此方案是实时领域Flink的解决方案，类似于离线数仓Hive中Ranger Row-level Filter方案。
 
 <br/>
 源码地址: https://github.com/HamaWhiteGG/flink-sql-security 
@@ -80,7 +79,7 @@ SELECT * FROM orders
 | 5 | SqlBasicCall | Implementation of SqlCall that keeps its operands in an array. |
 | 6 | SqlSelect | A SqlSelect is a node of a parse tree which represents a select statement, the parent class is SqlCall |
 
-![Calcite SqlNode diagrams.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Calcite%20SqlNode%20diagrams.png)
+<img src="https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Calcite%20SqlNode%20diagrams.png" alt="Calcite SqlNode diagrams.png"  style="width:70%;">
 
 #### 3.1.3 解决思路
 
