@@ -64,7 +64,7 @@
 首先通过执行用户和表名来查找配置的行级权限条件，系统会把此条件用CalciteParser提供的`parseExpression(String sqlExpression)`方法解析生成一个SqlBasicCall再返回。然后结合用户执行的SQL和配置的行级权限条件重新组装Where条件，即生成新的带行级过滤条件Abstract Syntax Tree，最后基于新AST(即新SQL)再执行。
 ![FlinkSQL row-level filter solution.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/FlinkSQL%20row-level%20filter%20solution.png)
 
-### 3.3 执行整体流程
+### 3.3 整体执行流程
 针对输入的Flink SQL，在`CalciteParser.parse()`进行语法解析后生成AST后，由于行级权限会修改SELECT语句中的Where子句。
 因此先根据行级权限方案替换AST中的Where子句，然后再根据数据脱敏方案把AST中的输入表改为子查询，最后得到新的SQL来继续执行。
 ![Data mask and Row-level filter overall execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Data%20mask%20and%20Row-level%20filter%20overall%20execution%20flowchart.png)
@@ -77,15 +77,16 @@
 $ cd flink-sql-security
 $ mvn test
 ```
-
-用户A和用户B的权限配置如1.3小节所述，即**用户A**只能查看到**北京**区域的数据，且顾客姓名(`customer_name`字段)全部被掩盖掉; **用户B**只能查看到**杭州**区域的数据，且顾客姓名只会显示前4位，剩下的用`x`代替。
+用户A和用户B的权限策略配置如1.3小节所述，即:
+- **用户A**只能查看到**北京**区域的数据，且顾客姓名(`customer_name`字段)全部被掩盖掉;
+- **用户B**只能查看到**杭州**区域的数据，且顾客姓名只会显示前4位，剩下的用`x`代替。
 
 ### 4.1 输入SQL
 ```sql
 SELECT order_id, customer_name, product_id, region FROM orders
 ```
 
-### 4.2 用户A的真实执行SQL
+### 4.2 用户A的最终执行SQL
 ```sql
 SELECT
     order_id,
@@ -108,7 +109,7 @@ WHERE
     region = 'beijing'
 ```
 
-### 4.3 用户B的真实执行SQL
+### 4.3 用户B的最终执行SQL
 ```sql
 SELECT
     order_id,
