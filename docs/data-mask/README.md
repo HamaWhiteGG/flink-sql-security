@@ -45,8 +45,7 @@ SELECT * FROM orders
 ## 二、Hive数据脱敏解决方案
 在离线数仓工具Hive领域，由于发展多年已有Ranger来支持字段数据的数据脱敏控制，详见参考文献[[1]](https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.0/authorization-ranger/content/dynamic_resource_based_column_masking_in_hive_with_ranger_policies.html)。
 下图是在Ranger里配置Hive表数据脱敏条件的页面，供参考。
-
-![Hive-Ranger data mask.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/doc/images/Hive-Ranger%20data%20mask.png)
+![Hive-Ranger data mask.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Hive-Ranger%20data%20mask.png)
 
 <br/>
 但由于Flink实时数仓领域发展相对较短，Ranger还不支持FlinkSQL，以及依赖Ranger的话会导致系统部署和运维过重，因此开始**自研实时数仓的数据脱敏解决工具**。
@@ -56,7 +55,7 @@ SELECT * FROM orders
 ### 3.1 解决方案
 #### 3.1.1 FlinkSQL执行流程
 可以参考作者文章[[FlinkSQL字段血缘解决方案及源码]](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)，本文根据Flink1.16修正和简化后的执行流程如下图所示。
-![FlinkSQL simple-execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/data/images/FlinkSQL%20simple-execution%20flowchart.png)
+![FlinkSQL simple-execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/FlinkSQL%20simple-execution%20flowchart.png)
 
 在`CalciteParser.parse()`处理后会得到一个SqlNode类型的抽象语法树，本文会针对此抽象语法树来组装脱敏条件后来生成新的AST，以实现数据脱敏控制。
 
@@ -72,7 +71,7 @@ SELECT * FROM orders
 | 5 | SqlBasicCall | Implementation of SqlCall that keeps its operands in an array. |
 | 6 | SqlSelect | A SqlSelect is a node of a parse tree which represents a select statement, the parent class is SqlCall |
 
-![Calcite SqlNode diagrams.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/data/images/Calcite%20SqlNode%20diagrams.png)
+![Calcite SqlNode diagrams.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Calcite%20SqlNode%20diagrams.png)
 
 #### 3.1.3 解决思路
 
