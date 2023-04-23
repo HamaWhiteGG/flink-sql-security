@@ -97,7 +97,7 @@ SELECT * FROM orders
 
 然后再获取行级权限条件解析后生成SqlBasicCall类型的Permissions，并给Permissions增加别名，最后把已有Where和Permissions进行组装生成新的Where，来作为SqlSelect对象的Where约束。
 
-![Row-level filter-rewrite the main process.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Row-level%20filter-rewrite%20the%20main%20process.png)
+![Row-level filter-rewrite the main process.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Row-level%20Filter-Rewrite%20the%20main%20process.png)
 
 
 上述流程图的各个分支，都会在下面的**用例测试**章节中会举例说明。
