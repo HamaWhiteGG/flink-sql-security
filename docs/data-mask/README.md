@@ -46,7 +46,6 @@ SELECT * FROM orders
 下图是在Ranger里配置Hive表数据脱敏条件的页面，供参考。
 ![Hive-Ranger data mask.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Hive-Ranger%20data%20mask.png)
 
-<br/>
 但由于Flink实时数仓领域发展相对较短，Ranger还不支持FlinkSQL，以及依赖Ranger的话会导致系统部署和运维过重，因此开始**自研实时数仓的数据脱敏解决工具**。
 当然本文中的核心思想也适用于Ranger中，可以基于此较快开发出ranger-flink插件。
 
