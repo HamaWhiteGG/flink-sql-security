@@ -16,10 +16,10 @@
 
 > 注: 如果用IntelliJ IDEA打开源码，请提前安装 **Manifold** 插件。
 
-
+<br/>
 如果希望进一步阅读技术细节，请查看系列文章:
-1. ![FlinkSQL的行级权限决方案及源码](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/row-filter/README.md)
-2. ![FlinkSQL的数据脱敏解决方案及源码](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/data-mask/README.md)
+1. [FlinkSQL的行级权限决方案及源码](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/row-filter/README.md)
+2. [FlinkSQL的数据脱敏解决方案及源码](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/data-mask/README.md)
 
 
 ## 一、基础知识
@@ -46,7 +46,7 @@
 可以参考作者文章[[FlinkSQL字段血缘解决方案及源码]](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)，本文根据Flink1.16修正和简化后的执行流程如下图所示。
 ![FlinkSQL simple-execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/main/data/images/FlinkSQL%20simple-execution%20flowchart.png)
 
-在`CalciteParser.parse()`处理后会得到一个SqlNode类型的抽象语法树(`Abstract Syntax Tree`，简称AST)，本文会针对此抽象语法树来组装脱敏和行级过滤条件后生成新的AST，以实现数据脱敏和行级权限控制。
+在`CalciteParser.parse()`处理后会得到一个SqlNode类型的抽象语法树，本文会针对此抽象语法树来组装脱敏和行级过滤条件后生成新的AST，以实现数据脱敏和行级权限控制。
 
 ## 三、解决方案
 ### 3.1 数据脱敏
