@@ -15,7 +15,7 @@ CREATE TABLE orders (
   order_id      INTEGER        NOT NULL AUTO_INCREMENT PRIMARY KEY,
   order_date    DATETIME       NOT NULL,
   customer_name VARCHAR(255)   NOT NULL,
-  price         DECIMAL(10, 1) NOT NULL,
+  price         DECIMAL(10, 5) NOT NULL,
   product_id    INTEGER        NOT NULL,
   order_status  BOOLEAN        NOT NULL,
   region        VARCHAR(255)   NOT NULL

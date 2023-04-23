@@ -153,7 +153,7 @@ public abstract class AbstractBasicTest {
                 "       order_date          TIMESTAMP(0)                 ," +
                 "       customer_name       STRING                       ," +
                 "       product_id          INT                          ," +
-                "       price               DECIMAL(10, 1)               ," +
+                "       price               DECIMAL(10, 5)               ," +
                 "       order_status        BOOLEAN                      ," +
                 "       region              STRING                        " +
                 ") WITH ( " +
