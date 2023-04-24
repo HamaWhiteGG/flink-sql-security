@@ -42,7 +42,7 @@ SELECT * FROM orders
 
 
 ## 二、Hive数据脱敏解决方案
-在离线数仓工具Hive领域，由于发展多年已有Ranger来支持字段数据的数据脱敏控制，详见参考文献[[1]](https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.0/authorization-ranger/content/dynamic_resource_based_column_masking_in_hive_with_ranger_policies.html)。
+在离线数仓工具Hive领域，由于发展多年已有Ranger来支持字段数据的脱敏控制，详见参考文献[[1]](https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.0/authorization-ranger/content/dynamic_resource_based_column_masking_in_hive_with_ranger_policies.html)。
 下图是在Ranger里配置Hive表数据脱敏条件的页面，供参考。
 ![Hive-Ranger data mask.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Hive-Ranger%20data%20mask.png)
 
@@ -80,7 +80,7 @@ SELECT * FROM orders
 ![FlinkSQL data mask solution.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/FlinkSQL%20data%20mask%20solution.png)
 
 ### 3.2 详细方案
-#### 3.2.1 如何解析出输入表
+#### 3.2.1 解析输入表
 通过对Flink SQL 语法的分析和研究，最终出现输入表的只包含以下两种情况:
 1. SELECT 语句的FROM子句，如果是子查询，则递归继续遍历。
 2. SELECT ... JOIN 语句的Left和Right子句，如果是多表JOIN，则递归查询遍历。
@@ -98,7 +98,7 @@ SELECT * FROM orders
 3. 判断SELECT语句中的FROM类型，按照不同类型对应执行下面的步骤4、5、6和11。
 4. 如果FROM是SqlJoin类型，则分别遍历其左Left和Right右节点，即执行当前步骤4和步骤7。由于可能是三张表及以上的Join，因此进行递归处理，即针对其左Left节点跳回到步骤3。
 5. 如果FROM是SqlIdentifier类型，则表示是表。但是输入SQL中没有定义表的别名，则用表名作为别名。跳转到步骤8。
-6. 如果FROM是SqlBasicCall类型，判断是否来自子查询，是则跳转到步骤11继续遍历AST，后续步骤1会对子查询中的SELECT语句进行处理。否则跳转到步骤8。
+6. 如果FROM是SqlBasicCall类型，则表示带别名。但需要判断是否来自子查询，是则跳转到步骤11继续遍历AST，后续步骤1会对子查询中的SELECT语句进行处理。否则跳转到步骤8。
 7. 递归处理Join的右节点，即跳回到步骤3。
 8. 遍历表中的每个字段，如果某个字段有定义脱敏条件，则把改字段改写成格式`CAST(脱敏函数(字段名) AS 字段类型) AS 字段名`，否则用原字段名。
 9. 针对步骤8处理后的字段，构建子查询语句，形如 `(SELECT 字段名1, 字段名2, CAST(脱敏函数(字段名3) AS 字段类型) AS 字段名3、字段名4 FROM 表名) AS 表别名`。
