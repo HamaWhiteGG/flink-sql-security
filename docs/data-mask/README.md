@@ -19,11 +19,8 @@
 
 #### 1.2.1 设置脱敏策略
 管理员配置用户、表、字段、脱敏条件，例如下面的配置。
+![Data mask example conditions.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Data%20mask%20example%20conditions.png)
 
-| 序号 |  用户名 | 表名 | 字段名 | 脱敏条件 | 备注 | 
-| --- | --- | --- | --- | --- |  --- | 
-| 1 | 用户A | orders | customer_name | MASK | 掩盖全部字符 | 
-| 2 | 用户B | orders | customer_name | MASK_SHOW_FIRST_4 | 仅显示前4个字符，其他用x代替 |
 
 #### 1.2.2 用户访问数据
 当用户在Flink上查询`orders`表的数据时，会在底层结合该用户的脱敏条件重新生成SQL，即让数据脱敏生效。
