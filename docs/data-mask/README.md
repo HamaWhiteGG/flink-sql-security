@@ -116,7 +116,7 @@ SELECT * FROM orders
 | 7 | Date: show only year | 仅显示日期字符串的年份 | mask |
 | 8 | Custom | Hive UDF来自定义策略 | |
 
-由于Flink支持Hive Catalog，在Fink能调用Hive系统函数。 因此，本方案也支持在Flink SQL配置Ranger的脱敏策略。
+由于Flink支持Hive Catalog，在Flink能调用Hive系统函数。 因此，本方案也支持在Flink SQL配置Ranger的脱敏策略。
 
 ## 四、用例测试
 用例测试数据来自于CDC Connectors for Apache Flink
