@@ -8,6 +8,7 @@ import com.hw.security.flink.model.TableEntity;
 import com.hw.security.flink.visitor.basic.AbstractBasicVisitor;
 import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,33 +47,30 @@ public class DataMaskVisitor extends AbstractBasicVisitor {
             SqlJoin sqlJoin = (SqlJoin) from;
             walkTreeMaskTableRef(sqlJoin, SQL_JOIN_LEFT, sqlJoin.getLeft());
             walkTreeMaskTableRef(sqlJoin, SQL_JOIN_RIGHT, sqlJoin.getRight());
-        } else if (from instanceof SqlIdentifier) {
-            String tableName = from.toString();
-            LOG.debug("SqlIdentifier-tableName: [{}]", tableName);
-            // tableAlias is equal to tableName
-            addDataMask(parent, parentType, tableName, tableName);
         } else if (from instanceof SqlBasicCall) {
             SqlNode[] operands = ((SqlBasicCall) from).getOperands();
             // for example, for a sub-query, operands[0] is of type SqlSelect
             if (operands[0] instanceof SqlIdentifier) {
-                String tableName = operands[0].toString();
+                String tablePath = operands[0].toString();
                 String tableAlias = operands[1].toString();
-                LOG.debug("SqlBasicCall-tableName: [{}], tableAlias: [{}]", tableName, tableAlias);
-                addDataMask(parent, parentType, tableName, tableAlias);
+                LOG.debug("SqlBasicCall-tablePath: [{}], tableAlias: [{}]", tablePath, tableAlias);
+                addDataMask(parent, parentType, tablePath, tableAlias);
             }
         }
     }
 
-    private void addDataMask(SqlNode parent, ParentType parentType, String tableName, String tableAlias) {
-        TableEntity table = securityContext.getTable(tableName);
+    private void addDataMask(SqlNode parent, ParentType parentType, String tablePath, String tableAlias) {
+        ObjectIdentifier tableIdentifier = toObjectIdentifier(tablePath);
+        TableEntity table = securityContext.getTable(tableIdentifier);
+
         boolean doColumnMasking = false;
         List<String> columnTransformerList = new ArrayList<>();
         for (ColumnEntity column : table.getColumnList()) {
             String columnTransformer = column.getColumnName();
             Optional<String> condition = policyManager.getDataMaskCondition(username
-                    , securityContext.getCurrentCatalog()
-                    , securityContext.getCurrentDatabase()
-                    , tableName
+                    , tableIdentifier.getCatalogName()
+                    , tableIdentifier.getDatabaseName()
+                    , tableIdentifier.getObjectName()
                     , column.getColumnName());
             if (condition.isPresent()) {
                 doColumnMasking = true;
@@ -123,7 +121,7 @@ public class DataMaskVisitor extends AbstractBasicVisitor {
             }
         }
         sb.append(" FROM ");
-        sb.append(table.getTableName());
+        sb.append(table.getTableIdentifier().asSerializableString());
         sb.append(")");
         return sb.toString();
     }

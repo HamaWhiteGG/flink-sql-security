@@ -27,10 +27,9 @@ public abstract class AbstractBasicTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(AbstractBasicTest.class);
 
-
-    private static final String CATALOG_NAME = "hive";
+    protected static final String CATALOG_NAME = "hive";
+    protected static final String DATABASE = "default";
     private static final String HIVE_VERSION = "3.1.2";
-    private static final String DATABASE = "default";
 
     protected static final String USER_A = "user_A";
     protected static final String USER_B = "user_B";

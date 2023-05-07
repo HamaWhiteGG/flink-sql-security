@@ -33,25 +33,28 @@ public class MixedRewriteTest extends AbstractBasicTest {
      */
     @Test
     public void testSelect() {
-        String sql = "SELECT * FROM orders";
+        String sql = "SELECT order_id, customer_name, product_id, region FROM orders";
 
         // the alias is equal to the table name orders
-        String expected = "SELECT                   " +
-                "       *                           " +
-                "FROM (                             " +
-                "       SELECT                      " +
-                "               order_id           ," +
-                "               order_date         ," +
+        String expected = "SELECT                           " +
+                "       orders.order_id                    ," +
+                "       orders.customer_name               ," +
+                "       orders.product_id                  ," +
+                "       orders.region                       " +
+                "FROM (                                     " +
+                "       SELECT                              " +
+                "               order_id                   ," +
+                "               order_date                 ," +
                 "               CAST(mask(customer_name) AS STRING) AS customer_name ," +
-                "               product_id         ," +
-                "               price              ," +
-                "               order_status       ," +
-                "               region              " +
-                "       FROM                        " +
-                "               orders              " +
-                "     ) AS orders                   " +
-                "WHERE                              " +
-                "       region = 'beijing'          ";
+                "               product_id                 ," +
+                "               price                      ," +
+                "               order_status               ," +
+                "               region                      " +
+                "       FROM                                " +
+                "                hive.default.orders        " +
+                "     ) AS orders                           " +
+                "WHERE                                      " +
+                "       orders.region = 'beijing'           ";
 
         mixedRewrite(USER_A, sql, expected);
     }
@@ -63,7 +66,10 @@ public class MixedRewriteTest extends AbstractBasicTest {
     @Test
     public void testJoin() {
         String sql = "SELECT                        " +
-                "       orders.*                   ," +
+                "       orders.order_id            ," +
+                "       orders.customer_name       ," +
+                "       orders.product_id          ," +
+                "       orders.region              ," +
                 "       p.name                     ," +
                 "       p.description               " +
                 "FROM                               " +
@@ -73,35 +79,38 @@ public class MixedRewriteTest extends AbstractBasicTest {
                 "ON                                 " +
                 "       orders.product_id = p.id    ";
 
-        String expected = "SELECT                   " +
-                "       orders.*                   ," +
-                "       p.name                     ," +
-                "       p.description               " +
-                "FROM (                             " +
-                "       SELECT                      " +
-                "               order_id           ," +
-                "               order_date         ," +
+        String expected = "SELECT                           " +
+                "       orders.order_id                    ," +
+                "       orders.customer_name               ," +
+                "       orders.product_id                  ," +
+                "       orders.region                      ," +
+                "       p.name                             ," +
+                "       p.description                       " +
+                "FROM (                                     " +
+                "       SELECT                              " +
+                "               order_id                   ," +
+                "               order_date                 ," +
                 "               CAST(mask(customer_name) AS STRING) AS customer_name ," +
-                "               product_id         ," +
-                "               price              ," +
-                "               order_status       ," +
-                "               region              " +
-                "       FROM                        " +
-                "               orders              " +
-                "     ) AS orders                   " +
-                "LEFT JOIN (                        " +
-                "       SELECT                      " +
-                "               id                 ," +
+                "               product_id                 ," +
+                "               price                      ," +
+                "               order_status               ," +
+                "               region                      " +
+                "       FROM                                " +
+                "               hive.default.orders         " +
+                "     ) AS orders                           " +
+                "LEFT JOIN (                                " +
+                "       SELECT                              " +
+                "               id                         ," +
                 "               CAST(mask_show_last_n(name, 4, 'x', 'x', 'x', -1, '1') AS STRING) AS name, " +
-                "               description         " +
-                "       FROM                        " +
-                "               products            " +
-                "       ) AS p                      " +
-                "ON                                 " +
-                "       orders.product_id = p.id    " +
-                "WHERE                              " +
-                "       orders.region = 'beijing'   " +
-                "       AND p.name = 'hammer'       ";
+                "               description                 " +
+                "       FROM                                " +
+                "               hive.default.products       " +
+                "       ) AS p                              " +
+                "ON                                         " +
+                "       orders.product_id = p.id            " +
+                "WHERE                                      " +
+                "       orders.region = 'beijing'           " +
+                "       AND p.name = 'hammer'               ";
 
         mixedRewrite(USER_A, sql, expected);
     }

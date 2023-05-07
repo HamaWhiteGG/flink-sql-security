@@ -16,10 +16,7 @@ import org.apache.flink.table.api.Schema.UnresolvedMetadataColumn;
 import org.apache.flink.table.api.Schema.UnresolvedPhysicalColumn;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
-import org.apache.flink.table.catalog.AbstractCatalog;
-import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.catalog.CatalogBaseTable;
-import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.*;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.planner.delegation.ParserImpl;
 import org.apache.flink.types.Row;
@@ -108,46 +105,57 @@ public class SecurityContext {
      * Add row-level filter and return new SQL
      */
     public String rewriteRowFilter(String username, String singleSql) {
-        // parsing sql and return the abstract syntax tree
-        SqlNode sqlNode = parser.parseSql(singleSql);
+        // parse and validate sql
+        SqlNode validated = validate(singleSql);
 
         // add row-level filter and return a new abstract syntax tree
         RowFilterVisitor visitor = new RowFilterVisitor(this, username);
-        sqlNode.accept(visitor);
+        validated.accept(visitor);
 
-        return sqlNode.toString();
+        return validated.toString();
     }
 
     /**
      * Add column masking and return new SQL
      */
     public String rewriteDataMask(String username, String singleSql) {
-        // parsing sql and return the abstract syntax tree
-        SqlNode sqlNode = parser.parseSql(singleSql);
+        // parse and validate sql
+        SqlNode validated = validate(singleSql);
 
         // add data masking and return a new abstract syntax tree
         DataMaskVisitor visitor = new DataMaskVisitor(this, username);
-        sqlNode.accept(visitor);
+        validated.accept(visitor);
 
-        return sqlNode.toString();
+        return validated.toString();
     }
 
     /**
      * Add row-level filter and column masking, then return new SQL.
      */
     public String mixedRewrite(String username, String singleSql) {
-        // parsing sql and return the abstract syntax tree
-        SqlNode sqlNode = parser.parseSql(singleSql);
+        // parse and validate sql
+        SqlNode validated = validate(singleSql);
 
         // add row-level filter and return a new abstract syntax tree
         RowFilterVisitor rowFilterVisitor = new RowFilterVisitor(this, username);
-        sqlNode.accept(rowFilterVisitor);
+        validated.accept(rowFilterVisitor);
 
         // add data masking and return a new abstract syntax tree
         DataMaskVisitor dataMaskVisitor = new DataMaskVisitor(this, username);
-        sqlNode.accept(dataMaskVisitor);
+        validated.accept(dataMaskVisitor);
 
-        return sqlNode.toString();
+        return validated.toString();
+    }
+
+    /**
+     * Parse and validate sql, then return the abstract syntax tree
+     */
+    private SqlNode validate(String singleSql) {
+        // parsing sql and return the abstract syntax tree
+        SqlNode sqlNode = parser.parseSql(singleSql);
+
+        // validate the ast
+        return parser.validate(sqlNode);
     }
 
     /**
@@ -213,6 +221,9 @@ public class SecurityContext {
         return rowList;
     }
 
+    public PolicyManager getPolicyManager() {
+        return policyManager;
+    }
 
     private Catalog getCatalog(String catalogName) {
         return tableEnv.getCatalog(catalogName).orElseThrow(() ->
@@ -220,26 +231,8 @@ public class SecurityContext {
         );
     }
 
-    public TableEntity getTable(String tableName) {
-        return getTable(tableEnv.getCurrentCatalog(), tableEnv.getCurrentDatabase(), tableName);
-    }
-
-
-    public String getCurrentCatalog() {
-        return tableEnv.getCurrentCatalog();
-    }
-
-    public String getCurrentDatabase() {
-        return tableEnv.getCurrentDatabase();
-    }
-
-    public PolicyManager getPolicyManager() {
-        return policyManager;
-    }
-
-
-    public TableEntity getTable(String database, String tableName) {
-        return getTable(tableEnv.getCurrentCatalog(), database, tableName);
+    public TableEntity getTable(ObjectIdentifier identifier) {
+        return getTable(identifier.getCatalogName(), identifier.getDatabaseName(), identifier.getObjectName());
     }
 
     public TableEntity getTable(String catalogName, String database, String tableName) {
@@ -254,7 +247,7 @@ public class SecurityContext {
                     .map(column -> new ColumnEntity(column.getName(), processColumnType(column)))
                     .collect(Collectors.toList());
 
-            return new TableEntity(tableName, columnList);
+            return new TableEntity(ObjectIdentifier.of(catalogName, database, tableName), columnList);
         } catch (TableNotExistException e) {
             throw new TableException(String.format(
                     "Cannot find table '%s' in the database %s of catalog %s .", tableName, database, catalogName));

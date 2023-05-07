@@ -6,6 +6,7 @@ import manifold.ext.rt.api.This;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.flink.table.api.SqlParserException;
+import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.delegation.ParserImpl;
 import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.util.Preconditions;
@@ -53,5 +54,18 @@ public class ParserImplExtension {
         List<SqlNode> parsed = sqlNodeList.getList();
         Preconditions.checkArgument(parsed.size() == 1, "only single statement supported");
         return parsed.get(0);
+    }
+
+    /**
+     * validate the query
+     *
+     * @param thiz    Implementation of Parser that uses Calcite.
+     * @param sqlNode SqlNode to execute on
+     * @return validated sqlNode
+     */
+    public static SqlNode validate(@This @Jailbreak ParserImpl thiz, SqlNode sqlNode) {
+        // add @Jailbreak annotation to access private variables
+        FlinkPlannerImpl flinkPlanner = thiz.validatorSupplier.get();
+        return flinkPlanner.validate(sqlNode);
     }
 }

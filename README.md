@@ -9,6 +9,7 @@
 | 1 | HamaWhite | 1.0.0 | 2022-12-15 | 1. 支持行级权限 |
 | 2 | HamaWhite | 1.0.1 | 2023-04-11 | 1. 通过 [manifold-ext](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-ext) 扩展Flink ParserImpl类的方法</br> 2. 自定义calcite visitor来增加行级权限，不再改SqlSelect源码 |
 | 3 | HamaWhite | 2.0.0 | 2023-04-23 | 1. 支持数据脱敏 |
+| 4 | HamaWhite | 2.0.1 | 2023-05-07 | 1. 语法校验后再增加权限 |
 
 
 <br/>
