@@ -30,7 +30,7 @@ public class RowFilterVisitor extends AbstractBasicVisitor {
 
             SqlNode originWhere = sqlSelect.getWhere();
             // add row level filter condition for where clause
-            SqlNode rowFilterWhere = addCondition(sqlSelect.getFrom(), originWhere, false);
+            SqlNode rowFilterWhere = addCondition(sqlSelect.getFrom(), originWhere);
             if (rowFilterWhere != originWhere) {
                 LOG.info("Rewritten SQL based on row-level privilege filtering for user [{}]", username);
             }
@@ -42,20 +42,14 @@ public class RowFilterVisitor extends AbstractBasicVisitor {
     /**
      * The main process of controlling row-level permissions
      */
-    private SqlNode addCondition(SqlNode from, SqlNode where, boolean fromJoin) {
-        if (from instanceof SqlIdentifier) {
-            String tableName = from.toString();
-            // the table name is used as an alias for join
-            String tableAlias = fromJoin ? tableName : null;
-            return addRowFilter(where, tableName, tableAlias);
-        } else if (from instanceof SqlJoin) {
+    private SqlNode addCondition(SqlNode from, SqlNode where) {
+        if (from instanceof SqlJoin) {
             SqlJoin sqlJoin = (SqlJoin) from;
             // support recursive processing, such as join for three tables, process left sqlNode
-            where = addCondition(sqlJoin.getLeft(), where, true);
+            where = addCondition(sqlJoin.getLeft(), where);
             // process right sqlNode
-            return addCondition(sqlJoin.getRight(), where, true);
+            return addCondition(sqlJoin.getRight(), where);
         } else if (from instanceof SqlBasicCall) {
-            // Table has an alias or comes from a sub-query
             SqlNode[] tableNodes = ((SqlBasicCall) from).getOperands();
             /*
               If there is a sub-query in the Join, row-level filtering has been appended to the sub-query.
@@ -64,9 +58,10 @@ public class RowFilterVisitor extends AbstractBasicVisitor {
             if (!(tableNodes[0] instanceof SqlIdentifier)) {
                 return where;
             }
-            String tableName = tableNodes[0].toString();
+            String tablePath = tableNodes[0].toString();
             String tableAlias = tableNodes[1].toString();
-            return addRowFilter(where, tableName, tableAlias);
+            LOG.debug("SqlBasicCall-tablePath: [{}], tableAlias: [{}]", tablePath, tableAlias);
+            return addRowFilter(where, tablePath, tableAlias);
         }
         return where;
     }
@@ -84,14 +79,12 @@ public class RowFilterVisitor extends AbstractBasicVisitor {
 
         if (condition.isPresent()) {
             SqlBasicCall sqlBasicCall = (SqlBasicCall) securityContext.parseExpression(condition.get());
-            if (tableAlias != null) {
-                ImmutableList<String> namesList = ImmutableList.of(tableAlias, sqlBasicCall.getOperands()[0].toString());
-                sqlBasicCall.getOperands()[0] = new SqlIdentifier(namesList
-                        , null
-                        , new SqlParserPos(0, 0)
-                        , null
-                );
-            }
+            ImmutableList<String> namesList = ImmutableList.of(tableAlias, sqlBasicCall.getOperands()[0].toString());
+            sqlBasicCall.getOperands()[0] = new SqlIdentifier(namesList
+                    , null
+                    , new SqlParserPos(0, 0)
+                    , null
+            );
             return buildWhereClause(where, sqlBasicCall);
         }
         return buildWhereClause(where, null);

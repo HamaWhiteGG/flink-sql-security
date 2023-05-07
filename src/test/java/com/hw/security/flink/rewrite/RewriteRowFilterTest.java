@@ -460,7 +460,6 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
         policyManager.removePolicy(policy2);
     }
 
-
     /**
      * insert-select.
      * insert into print table from mysql cdc stream table.
@@ -479,14 +478,14 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
                 "       orders.price                               ," +
                 "       orders.order_status                        ," +
                 "       orders.region                               " +
-                "FROM                                               "
+                "FROM                                               " +
                 "       hive.default.orders AS orders               " +
                 "WHERE                                              " +
-                "        orders.region = 'beijing')                 ";
+                "        orders.region = 'beijing'                  " +
+                ")                                                  ";
 
         rewriteRowFilter(USER_A, sql, expected);
     }
-
 
     /**
      * insert-select-select.
