@@ -36,11 +36,14 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
      */
     @Test
     public void testSelect() {
-        String sql = "SELECT * FROM orders";
+        String sql = "SELECT order_id, customer_name, product_id, region FROM orders";
 
         // the alias is equal to the table name orders
         String expected = "SELECT                   " +
-                "       *                           " +
+                "       orders.order_id            ," +
+                "       orders.customer_name       ," +
+                "       orders.product_id          ," +
+                "       orders.region               " +
                 "FROM (                             " +
                 "       SELECT                      " +
                 "               order_id           ," +
@@ -51,7 +54,7 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
                 "               order_status       ," +
                 "               region              " +
                 "       FROM                        " +
-                "               orders              " +
+                "               hive.default.orders " +
                 "     ) AS orders                   ";
 
         rewriteDataMask(USER_A, sql, expected);
@@ -62,11 +65,14 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
      */
     @Test
     public void testSelectWithAlias() {
-        String sql = "SELECT o.* FROM orders as o";
+        String sql = "SELECT o.order_id, o.customer_name, o.product_id, o.region FROM orders AS o";
 
         // the alias is equal to 'o'
         String expected = "SELECT                   " +
-                "       o.*                         " +
+                "       o.order_id                 ," +
+                "       o.customer_name            ," +
+                "       o.product_id               ," +
+                "       o.region                    " +
                 "FROM (                             " +
                 "       SELECT                      " +
                 "               order_id           ," +
@@ -77,7 +83,7 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
                 "               order_status       ," +
                 "               region              " +
                 "       FROM                        " +
-                "               orders              " +
+                "               hive.default.orders " +
                 "     ) AS o                        ";
         
         rewriteDataMask(USER_A, sql, expected);
@@ -89,10 +95,13 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
      */
     @Test
     public void testSelectDiffUser() {
-        String sql = "SELECT * FROM orders";
+        String sql = "SELECT order_id, customer_name, product_id, region FROM orders";
 
         String expectedUserA = "SELECT              " +
-                "       *                         " +
+                "       orders.order_id            ," +
+                "       orders.customer_name       ," +
+                "       orders.product_id          ," +
+                "       orders.region               " +
                 "FROM (                             " +
                 "       SELECT                      " +
                 "               order_id           ," +
@@ -103,23 +112,26 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
                 "               order_status       ," +
                 "               region              " +
                 "       FROM                        " +
-                "               orders              " +
+                "               hive.default.orders " +
                 "     ) AS orders                   ";
 
-        String expectedUserB = "SELECT              " +
-                "       *                           " +
-                "FROM (                             " +
-                "       SELECT                      " +
-                "               order_id           ," +
-                "               order_date         ," +
+        String expectedUserB = "SELECT               " +
+                "       orders.order_id             ," +
+                "       orders.customer_name        ," +
+                "       orders.product_id           ," +
+                "       orders.region                " +
+                "FROM (                              " +
+                "       SELECT                       " +
+                "               order_id            ," +
+                "               order_date          ," +
                 "               CAST(mask_show_first_n(customer_name, 4, 'x', 'x', 'x', -1, '1') AS STRING) AS customer_name ," +
-                "               product_id         ," +
-                "               price              ," +
-                "               order_status       ," +
-                "               region              " +
-                "       FROM                        " +
-                "               orders              " +
-                "     ) AS orders                   ";
+                "               product_id          ," +
+                "               price               ," +
+                "               order_status        ," +
+                "               region               " +
+                "       FROM                         " +
+                "               hive.default.orders  " +
+                "     ) AS orders                    ";
 
         rewriteDataMask(USER_A, sql, expectedUserA);
         rewriteDataMask(USER_B, sql, expectedUserB);
@@ -132,7 +144,10 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
     @Test
     public void testJoin() {
         String sql = "SELECT                        " +
-                "       orders.*                   ," +
+                "       orders.order_id            ," +
+                "       orders.customer_name       ," +
+                "       orders.product_id          ," +
+                "       orders.region              ," +
                 "       p.name                     ," +
                 "       p.description               " +
                 "FROM                               " +
@@ -142,32 +157,35 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
                 "ON                                 " +
                 "       orders.product_id = p.id    ";
 
-        String expected = "SELECT                   " +
-                "       orders.*                   ," +
-                "       p.name                     ," +
-                "       p.description               " +
-                "FROM (                             " +
-                "       SELECT                      " +
-                "               order_id           ," +
-                "               order_date         ," +
+        String expected = "SELECT                       " +
+                "       orders.order_id                ," +
+                "       orders.customer_name           ," +
+                "       orders.product_id              ," +
+                "       orders.region                  ," +
+                "       p.name                         ," +
+                "       p.description                   " +
+                "FROM (                                 " +
+                "       SELECT                          " +
+                "               order_id               ," +
+                "               order_date             ," +
                 "               CAST(mask(customer_name) AS STRING) AS customer_name ," +
-                "               product_id         ," +
-                "               price              ," +
-                "               order_status       ," +
-                "               region              " +
-                "       FROM                        " +
-                "               orders              " +
-                "     ) AS orders                   " +
-                "LEFT JOIN (                        " +
-                "       SELECT                      " +
-                "               id                 ," +
+                "               product_id             ," +
+                "               price                  ," +
+                "               order_status           ," +
+                "               region                  " +
+                "       FROM                            " +
+                "               hive.default.orders     " +
+                "     ) AS orders                       " +
+                "LEFT JOIN (                            " +
+                "       SELECT                          " +
+                "               id                     ," +
                 "               CAST(mask_show_last_n(name, 4, 'x', 'x', 'x', -1, '1') AS STRING) AS name, " +
-                "               description         " +
-                "       FROM                        " +
-                "               products            " +
-                "       ) AS p                      " +
-                "ON                                 " +
-                "       orders.product_id = p.id    ";
+                "               description             " +
+                "       FROM                            " +
+                "               hive.default.products   " +
+                "       ) AS p                          " +
+                "ON                                     " +
+                "       orders.product_id = p.id        ";
 
         rewriteDataMask(USER_A, sql, expected);
     }
@@ -178,12 +196,19 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
     @Test
     public void testJoinSubQueryWhere() {
         String sql = "SELECT                            " +
-                "       o.*                            ," +
+                "       o.order_id                     ," +
+                "       o.customer_name                ," +
+                "       o.product_id                   ," +
+                "       o.region                       ," +
                 "       p.name                         ," +
                 "       p.description                   " +
                 "FROM (                                 " +
                 "       SELECT                          " +
-                "               *                       " +
+                "               order_id               ," +
+                "               customer_name          ," +
+                "               price                  ," +
+                "               product_id             ," +
+                "               region                  " +
                 "       FROM                            " +
                 "               orders                  " +
                 "       WHERE order_status = FALSE      " +
@@ -196,40 +221,48 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
                 "       o.price > 45.0                  " +
                 "       OR o.customer_name = 'John'     ";
 
-        String expected = "SELECT                       " +
-                "       o.*, p.name                    ," +
-                "       p.description                   " +
-                "FROM (                                 " +
-                "       SELECT                          " +
-                "               *                       " +
-                "       FROM (                          " +
-                "               SELECT                  " +
-                "                       order_id       ," +
-                "                       order_date     ," +
+        String expected = "SELECT                               " +
+                "       o.order_id                             ," +
+                "       o.customer_name                        ," +
+                "       o.product_id                           ," +
+                "       o.region                               ," +
+                "       p.name                                 ," +
+                "       p.description                           " +
+                "FROM (                                         " +
+                "       SELECT                                  " +
+                "               orders.order_id                ," +
+                "               orders.customer_name           ," +
+                "               orders.price                   ," +
+                "               orders.product_id              ," +
+                "               orders.region                   " +
+                "       FROM (                                  " +
+                "               SELECT                          " +
+                "                       order_id               ," +
+                "                       order_date             ," +
                 "                       CAST(mask(customer_name) AS STRING) AS customer_name ," +
-                "                       product_id     ," +
-                "                       price          ," +
-                "                       order_status   ," +
-                "                       region          " +
-                "               FROM                    " +
-                "                       orders          " +
-                "            ) AS orders                " +
-                "       WHERE                           " +
-                "               order_status = FALSE    " +
-                "     ) AS o                            " +
-                "LEFT JOIN (                            " +
-                "       SELECT " +
-                "               id                      ," +
+                "                       product_id             ," +
+                "                       price                  ," +
+                "                       order_status           ," +
+                "                       region                  " +
+                "               FROM                            " +
+                "                       hive.default.orders     " +
+                "            ) AS orders                        " +
+                "       WHERE                                   " +
+                "               orders.order_status = FALSE     " +
+                "     ) AS o                                    " +
+                "LEFT JOIN (                                    " +
+                "       SELECT                                  " +
+                "               id                             ," +
                 "               CAST(mask_show_last_n(name, 4, 'x', 'x', 'x', -1, '1') AS STRING) AS name ," +
-                "               description             " +
-                "       FROM                            " +
-                "           products                    " +
-                "          ) AS p                       " +
-                "ON                                     " +
-                "       o.product_id = p.id             " +
-                "WHERE                                  " +
-                "       o.price > 45.0                  " +
-                "       OR o.customer_name = 'John'     ";
+                "               description                     " +
+                "       FROM                                    " +
+                "           hive.default.products               " +
+                "          ) AS p                               " +
+                "ON                                             " +
+                "       o.product_id = p.id                     " +
+                "WHERE                                          " +
+                "       o.price > 45.0                          " +
+                "       OR o.customer_name = 'John'             ";
 
         rewriteDataMask(USER_A, sql, expected);
     }
@@ -241,7 +274,10 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
     @Test
     public void testThreeJoin() {
         String sql = "SELECT                        " +
-                "       o.*                        ," +
+                "       o.order_id                 ," +
+                "       o.customer_name            ," +
+                "       o.product_id               ," +
+                "       o.region                   ," +
                 "       p.name                     ," +
                 "       p.description              ," +
                 "       s.shipment_id              ," +
@@ -259,39 +295,43 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
                 "ON                                 " +
                 "       o.order_id = s.order_id     ";
 
-        String expected = "SELECT                   " +
-                "       o.*, p.name                ," +
-                "       p.description              ," +
-                "       s.shipment_id              ," +
-                "       s.origin                   ," +
-                "       s.destination              ," +
-                "       s.is_arrived                " +
-                "FROM (                             " +
-                "       SELECT                      " +
-                "               order_id           ," +
-                "               order_date         ," +
+        String expected = "SELECT                       " +
+                "       o.order_id                     ," +
+                "       o.customer_name                ," +
+                "       o.product_id                   ," +
+                "       o.region                       ," +
+                "       p.name                         ," +
+                "       p.description                  ," +
+                "       s.shipment_id                  ," +
+                "       s.origin                       ," +
+                "       s.destination                  ," +
+                "       s.is_arrived                    " +
+                "FROM (                                 " +
+                "       SELECT                          " +
+                "               order_id               ," +
+                "               order_date             ," +
                 "               CAST(mask(customer_name) AS STRING) AS customer_name ," +
-                "               product_id         ," +
-                "               price              ," +
-                "               order_status       ," +
-                "               region              " +
-                "       FROM                        " +
-                "           orders                  " +
-                "     ) AS o                        " +
-                "LEFT JOIN (                        " +
-                "       SELECT                      " +
-                "               id                 ," +
+                "               product_id             ," +
+                "               price                  ," +
+                "               order_status           ," +
+                "               region                  " +
+                "       FROM                            " +
+                "           hive.default.orders         " +
+                "     ) AS o                            " +
+                "LEFT JOIN (                            " +
+                "       SELECT                          " +
+                "               id                     ," +
                 "               CAST(mask_show_last_n(name, 4, 'x', 'x', 'x', -1, '1') AS STRING) AS name, " +
-                "               description         " +
-                "       FROM                        " +
-                "               products            " +
-                "       ) AS p                      " +
-                "ON                                 " +
-                "       o.product_id = p.id         " +
-                "LEFT JOIN                          " +
-                "       shipments AS s              " +
-                "ON                                 " +
-                "       o.order_id = s.order_id     ";
+                "               description             " +
+                "       FROM                            " +
+                "               hive.default.products   " +
+                "       ) AS p                          " +
+                "ON                                     " +
+                "       o.product_id = p.id             " +
+                "LEFT JOIN                              " +
+                "       hive.default.shipments AS s     " +
+                "ON                                     " +
+                "       o.order_id = s.order_id         ";
 
         rewriteDataMask(USER_A, sql, expected);
     }
@@ -303,10 +343,17 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
     @Test
     public void testInsertSelect() {
         String sql = "INSERT INTO print_sink SELECT * FROM orders";
+
         // the following () is what Calcite would automatically add
         String expected = "INSERT INTO print_sink (                 " +
                 "SELECT                                             " +
-                "       *                                           " +
+                "       orders.order_id                            ," +
+                "       orders.order_date                          ," +
+                "       orders.customer_name                       ," +
+                "       orders.product_id                          ," +
+                "       orders.price                               ," +
+                "       orders.order_status                        ," +
+                "       orders.region                               " +
                 "FROM (                                             " +
                 "       SELECT                                      " +
                 "               order_id                           ," +
@@ -317,13 +364,12 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
                 "               order_status                       ," +
                 "               region                              " +
                 "       FROM                                        " +
-                "           orders                                  " +
+                "           hive.default.orders                     " +
                 "     ) AS orders                                   " +
                 ")                                                  ";
 
         rewriteDataMask(USER_A, sql, expected);
     }
-
 
     /**
      * insert-select-select.
@@ -331,14 +377,27 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
      */
     @Test
     public void testInsertSelectSelect() {
-        String sql = "INSERT INTO print_sink SELECT * FROM (SELECT * FROM orders)";
+        String sql = "INSERT INTO print_sink SELECT * FROM (SELECT * FROM orders) AS o";
+
         // the following () is what Calcite would automatically add
         String expected = "INSERT INTO print_sink (                 " +
                 "SELECT                                             " +
-                "       *                                           " +
+                "       o.order_id                                 ," +
+                "       o.order_date                               ," +
+                "       o.customer_name                            ," +
+                "       o.product_id                               ," +
+                "       o.price                                    ," +
+                "       o.order_status                             ," +
+                "       o.region                                    " +
                 "FROM (                                             " +
                 "       SELECT                                      " +
-                "               *                                   " +
+                "               orders.order_id                    ," +
+                "               orders.order_date                  ," +
+                "               orders.customer_name               ," +
+                "               orders.product_id                  ," +
+                "               orders.price                       ," +
+                "               orders.order_status                ," +
+                "               orders.region                       " +
                 "       FROM (                                      " +
                 "               SELECT                              " +
                 "                       order_id                   ," +
@@ -349,9 +408,9 @@ public class RewriteDataMaskTest extends AbstractBasicTest {
                 "                       order_status               ," +
                 "                       region                      " +
                 "               FROM                                " +
-                "                       orders                      " +
+                "                       hive.default.orders         " +
                 "            ) AS orders                            " +
-                "     )                                             " +
+                "     ) AS o                                        " +
                 ")                                                  ";
 
         rewriteDataMask(USER_A, sql, expected);

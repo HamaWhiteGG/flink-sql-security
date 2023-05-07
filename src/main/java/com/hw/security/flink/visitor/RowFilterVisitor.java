@@ -5,6 +5,7 @@ import com.hw.security.flink.SecurityContext;
 import com.hw.security.flink.visitor.basic.AbstractBasicVisitor;
 import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,14 +74,16 @@ public class RowFilterVisitor extends AbstractBasicVisitor {
     /**
      * Add row-level filtering based on user-configured permission points
      */
-    private SqlNode addRowFilter(SqlNode where, String tableName, String tableAlias) {
+    private SqlNode addRowFilter(SqlNode where, String tablePath, String tableAlias) {
+        ObjectIdentifier tableIdentifier = toObjectIdentifier(tablePath);
+
         Optional<String> condition = policyManager.getRowFilterCondition(username
-                , securityContext.getCurrentCatalog()
-                , securityContext.getCurrentDatabase()
-                , tableName);
+                , tableIdentifier.getCatalogName()
+                , tableIdentifier.getDatabaseName()
+                , tableIdentifier.getObjectName());
 
         if (condition.isPresent()) {
-            SqlBasicCall sqlBasicCall = (SqlBasicCall)securityContext.parseExpression(condition.get());
+            SqlBasicCall sqlBasicCall = (SqlBasicCall) securityContext.parseExpression(condition.get());
             if (tableAlias != null) {
                 ImmutableList<String> namesList = ImmutableList.of(tableAlias, sqlBasicCall.getOperands()[0].toString());
                 sqlBasicCall.getOperands()[0] = new SqlIdentifier(namesList

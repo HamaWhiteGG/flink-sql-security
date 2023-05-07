@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.hw.security.flink.basic.AbstractBasicTest;
 import com.hw.security.flink.model.ColumnEntity;
 import com.hw.security.flink.model.TableEntity;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.types.Row;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -29,7 +30,8 @@ public class CommonTest extends AbstractBasicTest {
 
     @Test
     public void testGetTable() {
-        TableEntity actual = securityContext.getTable(TABLE_ORDERS);
+        ObjectIdentifier tableIdentifier = ObjectIdentifier.of(CATALOG_NAME, DATABASE, TABLE_ORDERS);
+        TableEntity actual = securityContext.getTable(tableIdentifier);
         List<ColumnEntity> columnList = ImmutableList.of(
                 new ColumnEntity("order_id", "INT"),
                 new ColumnEntity("order_date", "TIMESTAMP(0)"),
@@ -39,7 +41,7 @@ public class CommonTest extends AbstractBasicTest {
                 new ColumnEntity("order_status", "BOOLEAN"),
                 new ColumnEntity("region", "STRING")
         );
-        TableEntity expected = new TableEntity(TABLE_ORDERS, columnList);
+        TableEntity expected = new TableEntity(tableIdentifier, columnList);
         assertEquals(expected, actual);
     }
 
@@ -58,12 +60,12 @@ public class CommonTest extends AbstractBasicTest {
      */
     @Test
     public void testHiveSystemFunction() {
-        executeHiveFunction("select mask('hive-HDFS-8765-4321')","xxxx-XXXX-nnnn-nnnn");
-        executeHiveFunction("select mask_first_n('hive-HDFS-8765-4321', 4)","xxxx-HDFS-8765-4321");
-        executeHiveFunction("select mask_last_n('hive-HDFS-8765-4321', 4)","hive-HDFS-8765-nnnn");
-        executeHiveFunction("select mask_show_first_n('hive-HDFS-8765-4321', 4)","hive-XXXX-nnnn-nnnn");
-        executeHiveFunction("select mask_show_last_n('hive-HDFS-8765-4321', 4)","xxxx-XXXX-nnnn-4321");
-        executeHiveFunction("select mask_hash('flink')","7f025323639628aa5e5d24bd56f43317552b140c71406d0eb5a555671bd534d2");
+        executeHiveFunction("select mask('hive-HDFS-8765-4321')", "xxxx-XXXX-nnnn-nnnn");
+        executeHiveFunction("select mask_first_n('hive-HDFS-8765-4321', 4)", "xxxx-HDFS-8765-4321");
+        executeHiveFunction("select mask_last_n('hive-HDFS-8765-4321', 4)", "hive-HDFS-8765-nnnn");
+        executeHiveFunction("select mask_show_first_n('hive-HDFS-8765-4321', 4)", "hive-XXXX-nnnn-nnnn");
+        executeHiveFunction("select mask_show_last_n('hive-HDFS-8765-4321', 4)", "xxxx-XXXX-nnnn-4321");
+        executeHiveFunction("select mask_hash('flink')", "7f025323639628aa5e5d24bd56f43317552b140c71406d0eb5a555671bd534d2");
     }
 
     private void executeHiveFunction(String sql, String result) {

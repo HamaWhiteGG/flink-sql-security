@@ -36,8 +36,17 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
      */
     @Test
     public void testSelect() {
-        String sql = "SELECT * FROM orders";
-        String expected = "SELECT * FROM orders WHERE region = 'beijing'";
+        String sql = "SELECT order_id, customer_name, product_id, region FROM orders";
+
+        String expected = "SELECT                           " +
+                "       orders.order_id                    ," +
+                "       orders.customer_name               ," +
+                "       orders.product_id                  ," +
+                "       orders.region                       " +
+                "FROM                                       " +
+                "       hive.default.orders AS orders       " +
+                "WHERE                                      " +
+                "       orders.region = 'beijing'           ";
 
         rewriteRowFilter(USER_A, sql, expected);
     }
@@ -47,9 +56,27 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
      */
     @Test
     public void testSelectDiffUser() {
-        String sql = "SELECT * FROM orders";
-        String expectedUserA = "SELECT * FROM orders WHERE region = 'beijing'";
-        String expectedUserB = "SELECT * FROM orders WHERE region = 'hangzhou'";
+        String sql = "SELECT order_id, customer_name, product_id, region FROM orders";
+
+        String expectedUserA = "SELECT                      " +
+                "       orders.order_id                    ," +
+                "       orders.customer_name               ," +
+                "       orders.product_id                  ," +
+                "       orders.region                       " +
+                "FROM                                       " +
+                "       hive.default.orders AS orders       " +
+                "WHERE                                      " +
+                "       orders.region = 'beijing'           ";
+
+        String expectedUserB = "SELECT                       " +
+                "       orders.order_id                     ," +
+                "       orders.customer_name                ," +
+                "       orders.product_id                   ," +
+                "       orders.region                        " +
+                "FROM                                        " +
+                "       hive.default.orders AS orders        " +
+                "WHERE                                       " +
+                "       orders.region = 'hangzhou'           ";
 
         rewriteRowFilter(USER_A, sql, expectedUserA);
         rewriteRowFilter(USER_B, sql, expectedUserB);
@@ -60,12 +87,21 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
      */
     @Test
     public void testSelectWhere() {
-        String sql = "SELECT * FROM orders WHERE price > 45.0";
-        String expected = "SELECT * FROM orders WHERE price > 45.0 AND region = 'beijing'";
+        String sql = "SELECT order_id, customer_name, product_id, region FROM orders WHERE price > 45.0";
+
+        String expected = "SELECT                           " +
+                "       orders.order_id                    ," +
+                "       orders.customer_name               ," +
+                "       orders.product_id                  ," +
+                "       orders.region                       " +
+                "FROM                                       " +
+                "       hive.default.orders AS orders       " +
+                "WHERE                                      " +
+                "       orders.price > 45.0                 " +
+                "       AND orders.region = 'beijing'       ";
 
         rewriteRowFilter(USER_A, sql, expected);
     }
-
 
     /**
      * Where there is complex condition, add a pair of parentheses to the existing multiple where
@@ -73,12 +109,30 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
      */
     @Test
     public void testSelectComplexWhere() {
-        String sql = "SELECT * FROM orders WHERE price > 45.0 OR customer_name = 'John'";
-        String expected = "SELECT * FROM orders WHERE (price > 45.0 OR customer_name = 'John') AND region = 'beijing'";
+        String sql = "SELECT                                " +
+                "       order_id                           ," +
+                "       customer_name                      ," +
+                "       product_id                         ," +
+                "       region                              " +
+                "FROM                                       " +
+                "       orders                              " +
+                "WHERE                                      " +
+                "       price > 45.0                        " +
+                "       OR customer_name = 'John'           ";
+
+        String expected = "SELECT                                               " +
+                "       orders.order_id                                        ," +
+                "       orders.customer_name                                   ," +
+                "       orders.product_id                                      ," +
+                "       orders.region                                           " +
+                "FROM                                                           " +
+                "       hive.default.orders AS orders                           " +
+                "WHERE                                                          " +
+                "       (orders.price > 45.0 OR orders.customer_name = 'John')  " +
+                "       AND orders.region = 'beijing'                           ";
 
         rewriteRowFilter(USER_A, sql, expected);
     }
-
 
     /**
      * With group by clause
@@ -95,16 +149,16 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
                 "GROUP BY                           " +
                 "       customer_name               ";
 
-        String expected = "SELECT                   " +
-                "       customer_name              ," +
-                "       COUNT(*) AS cnt             " +
-                "FROM                               " +
-                "       orders                      " +
-                "WHERE                              " +
-                "       price > 45.0                " +
-                "       AND region = 'beijing'      " +
-                "GROUP BY                           " +
-                "       customer_name               ";
+        String expected = "SELECT                           " +
+                "       orders.customer_name               ," +
+                "       COUNT(*) AS cnt                     " +
+                "FROM                                       " +
+                "       hive.default.orders AS orders       " +
+                "WHERE                                      " +
+                "       orders.price > 45.0                 " +
+                "       AND orders.region = 'beijing'       " +
+                "GROUP BY                                   " +
+                "       orders.customer_name                ";
 
         rewriteRowFilter(USER_A, sql, expected);
     }
@@ -115,7 +169,10 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
     @Test
     public void testJoin() {
         String sql = "SELECT                        " +
-                "       o.*                        ," +
+                "       o.order_id                 ," +
+                "       o.customer_name            ," +
+                "       o.product_id               ," +
+                "       o.region                   ," +
                 "       p.name                     ," +
                 "       p.description               " +
                 "FROM                               " +
@@ -125,22 +182,24 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
                 "ON                                 " +
                 "       o.product_id = p.id         ";
 
-        String expected = "SELECT                   " +
-                "       o.*                         ," +
-                "       p.name                      ," +
-                "       p.description               " +
-                "FROM                               " +
-                "       orders AS o                 " +
-                "LEFT JOIN                          " +
-                "       products AS p               " +
-                "ON                                 " +
-                "       o.product_id = p.id         " +
-                "WHERE                              " +
-                "       o.region = 'beijing'        ";
+        String expected = "SELECT                           " +
+                "       o.order_id                         ," +
+                "       o.customer_name                    ," +
+                "       o.product_id                       ," +
+                "       o.region                           ," +
+                "       p.name                             ," +
+                "       p.description                       " +
+                "FROM                                       " +
+                "       hive.default.orders AS o            " +
+                "LEFT JOIN                                  " +
+                "       hive.default.products AS p          " +
+                "ON                                         " +
+                "       o.product_id = p.id                 " +
+                "WHERE                                      " +
+                "       o.region = 'beijing'                ";
 
         rewriteRowFilter(USER_A, sql, expected);
     }
-
 
     /**
      * The two tables of products and orders are left joined, but without alias
@@ -148,7 +207,10 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
     @Test
     public void testJoinWithoutAlias() {
         String sql = "SELECT                            " +
-                "       orders.*                       ," +
+                "       orders.order_id                ," +
+                "       orders.customer_name           ," +
+                "       orders.product_id              ," +
+                "       orders.region                  ," +
                 "       products.name                  ," +
                 "       products.description            " +
                 "FROM                                   " +
@@ -158,22 +220,24 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
                 "ON                                     " +
                 "       orders.product_id = products.id ";
 
-        String expected = "SELECT                       " +
-                "       orders.*                        ," +
-                "       products.name                   ," +
-                "       products.description            " +
-                "FROM                                   " +
-                "       orders                          " +
-                "LEFT JOIN                              " +
-                "       products                        " +
-                "ON                                     " +
-                "       orders.product_id = products.id " +
-                "WHERE                                  " +
-                "       orders.region = 'beijing'       ";
+        String expected = "SELECT                           " +
+                "       orders.order_id                    ," +
+                "       orders.customer_name               ," +
+                "       orders.product_id                  ," +
+                "       orders.region                      ," +
+                "       products.name                      ," +
+                "       products.description                " +
+                "FROM                                       " +
+                "       hive.default.orders AS orders       " +
+                "LEFT JOIN                                  " +
+                "       hive.default.products AS products   " +
+                "ON                                         " +
+                "       orders.product_id = products.id     " +
+                "WHERE                                      " +
+                "       orders.region = 'beijing'           ";
 
         rewriteRowFilter(USER_A, sql, expected);
     }
-
 
     /**
      * The two tables of products and orders are left joined, and there is a condition
@@ -181,7 +245,10 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
     @Test
     public void testJoinWhere() {
         String sql = "SELECT                            " +
-                "       o.*                            ," +
+                "       o.order_id                     ," +
+                "       o.customer_name                ," +
+                "       o.product_id                   ," +
+                "       o.region                       ," +
                 "       p.name                         ," +
                 "       p.description                   " +
                 "FROM                                   " +
@@ -194,19 +261,22 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
                 "       o.price > 45.0                  " +
                 "       OR o.customer_name = 'John'     ";
 
-        String expected = "SELECT                       " +
-                "       o.*                             ," +
-                "       p.name                          ," +
-                "       p.description                   " +
-                "FROM                                   " +
-                "       orders AS o                     " +
-                "LEFT JOIN                              " +
-                "       products AS p                   " +
-                "ON                                     " +
-                "       o.product_id = p.id             " +
-                "WHERE                                  " +
-                "       (o.price > 45.0 OR o.customer_name = 'John') " +
-                "       AND o.region = 'beijing'        ";
+        String expected = "SELECT                                       " +
+                "       o.order_id                                     ," +
+                "       o.customer_name                                ," +
+                "       o.product_id                                   ," +
+                "       o.region                                       ," +
+                "       p.name                                         ," +
+                "       p.description                                   " +
+                "FROM                                                   " +
+                "       hive.default.orders AS o                        " +
+                "LEFT JOIN                                              " +
+                "       hive.default.products AS p                      " +
+                "ON                                                     " +
+                "       o.product_id = p.id                             " +
+                "WHERE                                                  " +
+                "       (o.price > 45.0 OR o.customer_name = 'John')    " +
+                "       AND o.region = 'beijing'                        ";
 
         rewriteRowFilter(USER_A, sql, expected);
     }
@@ -218,12 +288,19 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
     @Test
     public void testJoinSubQueryWhere() {
         String sql = "SELECT                            " +
-                "       o.*                            ," +
+                "       o.order_id                     ," +
+                "       o.customer_name                ," +
+                "       o.product_id                   ," +
+                "       o.region                       ," +
                 "       p.name                         ," +
                 "       p.description                   " +
                 "FROM (                                 " +
                 "       SELECT                          " +
-                "               *                       " +
+                "               order_id               ," +
+                "               customer_name          ," +
+                "               price                  ," +
+                "               product_id             ," +
+                "               region                  " +
                 "       FROM                            " +
                 "               orders                  " +
                 "       WHERE order_status = FALSE      " +
@@ -236,26 +313,33 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
                 "       o.price > 45.0                  " +
                 "       OR o.customer_name = 'John'     ";
 
-        String expected = "SELECT                       " +
-                "       o.*                             ," +
-                "       p.name                          ," +
-                "       p.description                   " +
-                "FROM (                                 " +
-                "       SELECT                          " +
-                "               *                       " +
-                "       FROM                            " +
-                "               orders                  " +
-                "       WHERE                           " +
-                "           order_status = FALSE        " +
-                "           AND region = 'beijing'      " +
-                "     ) AS o                            " +
-                "LEFT JOIN                              " +
-                "       products AS p                   " +
-                "ON                                     " +
-                "       o.product_id = p.id             " +
-                "WHERE                                  " +
-                "       o.price > 45.0                  " +
-                "       OR o.customer_name = 'John'     ";
+        String expected = "SELECT                               " +
+                "       o.order_id                             ," +
+                "       o.customer_name                        ," +
+                "       o.product_id                           ," +
+                "       o.region                               ," +
+                "       p.name                                 ," +
+                "       p.description                           " +
+                "FROM (                                         " +
+                "       SELECT                                  " +
+                "               orders.order_id                ," +
+                "               orders.customer_name           ," +
+                "               orders.price                   ," +
+                "               orders.product_id              ," +
+                "               orders.region                   " +
+                "       FROM                                    " +
+                "               hive.default.orders AS orders   " +
+                "       WHERE                                   " +
+                "           orders.order_status = FALSE         " +
+                "           AND orders.region = 'beijing'       " +
+                "     ) AS o                                    " +
+                "LEFT JOIN                                      " +
+                "       hive.default.products AS p              " +
+                "ON                                             " +
+                "       o.product_id = p.id                     " +
+                "WHERE                                          " +
+                "       o.price > 45.0                          " +
+                "       OR o.customer_name = 'John'             ";
 
         rewriteRowFilter(USER_A, sql, expected);
     }
@@ -271,7 +355,10 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
         policyManager.addPolicy(policy);
 
         String sql = "SELECT                        " +
-                "       o.*                        ," +
+                "       o.order_id                 ," +
+                "       o.customer_name            ," +
+                "       o.product_id               ," +
+                "       o.region                   ," +
                 "       p.name                     ," +
                 "       p.description               " +
                 "FROM                               " +
@@ -281,19 +368,22 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
                 "ON                                 " +
                 "       o.product_id = p.id         ";
 
-        String expected = "SELECT                   " +
-                "       o.*                         ," +
+        String expected = "SELECT                    " +
+                "       o.order_id                  ," +
+                "       o.customer_name             ," +
+                "       o.product_id                ," +
+                "       o.region                    ," +
                 "       p.name                      ," +
-                "       p.description               " +
-                "FROM                               " +
-                "       orders AS o                 " +
-                "LEFT JOIN                          " +
-                "       products AS p               " +
-                "ON                                 " +
-                "       o.product_id = p.id         " +
-                "WHERE                              " +
-                "       o.region = 'beijing'        " +
-                "       AND p.name = 'hammer'       ";
+                "       p.description                " +
+                "FROM                                " +
+                "       hive.default.orders AS o     " +
+                "LEFT JOIN                           " +
+                "       hive.default.products AS p   " +
+                "ON                                  " +
+                "       o.product_id = p.id          " +
+                "WHERE                               " +
+                "       o.region = 'beijing'         " +
+                "       AND p.name = 'hammer'        ";
 
         rewriteRowFilter(USER_A, sql, expected);
 
@@ -316,7 +406,10 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
         policyManager.addPolicy(policy2);
 
         String sql = "SELECT                        " +
-                "       o.*                        ," +
+                "       o.order_id                 ," +
+                "       o.customer_name            ," +
+                "       o.product_id               ," +
+                "       o.region                   ," +
                 "       p.name                     ," +
                 "       p.description              ," +
                 "       s.shipment_id              ," +
@@ -334,28 +427,31 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
                 "ON                                 " +
                 "       o.order_id = s.order_id     ";
 
-        String expected = "SELECT                   " +
-                "       o.*                         ," +
+        String expected = "SELECT                    " +
+                "       o.order_id                  ," +
+                "       o.customer_name             ," +
+                "       o.product_id                ," +
+                "       o.region                    ," +
                 "       p.name                      ," +
                 "       p.description               ," +
                 "       s.shipment_id               ," +
                 "       s.origin                    ," +
                 "       s.destination               ," +
-                "       s.is_arrived                " +
-                "FROM                               " +
-                "       orders AS o                 " +
-                "LEFT JOIN                          " +
-                "       products AS p               " +
-                "ON                                 " +
-                "       o.product_id = p.id         " +
-                "LEFT JOIN                          " +
-                "       shipments AS s              " +
-                "ON                                 " +
-                "       o.order_id = s.order_id     " +
-                "WHERE                              " +
-                "       o.region = 'beijing'        " +
-                "       AND p.name = 'hammer'       " +
-                "       AND s.is_arrived = FALSE    ";
+                "       s.is_arrived                 " +
+                "FROM                                " +
+                "       hive.default.orders AS o     " +
+                "LEFT JOIN                           " +
+                "       hive.default.products AS p   " +
+                "ON                                  " +
+                "       o.product_id = p.id          " +
+                "LEFT JOIN                           " +
+                "       hive.default.shipments AS s  " +
+                "ON                                  " +
+                "       o.order_id = s.order_id      " +
+                "WHERE                               " +
+                "       o.region = 'beijing'         " +
+                "       AND p.name = 'hammer'        " +
+                "       AND s.is_arrived = FALSE     ";
 
         rewriteRowFilter(USER_A, sql, expected);
 
@@ -372,8 +468,21 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
     @Test
     public void testInsertSelect() {
         String sql = "INSERT INTO print_sink SELECT * FROM orders";
+
         // the following () is what Calcite would automatically add
-        String expected = "INSERT INTO print_sink (SELECT * FROM orders WHERE region = 'beijing')";
+        String expected = "INSERT INTO print_sink (                 " +
+                "SELECT                                             " +
+                "       orders.order_id                            ," +
+                "       orders.order_date                          ," +
+                "       orders.customer_name                       ," +
+                "       orders.product_id                          ," +
+                "       orders.price                               ," +
+                "       orders.order_status                        ," +
+                "       orders.region                               " +
+                "FROM                                               "
+                "       hive.default.orders AS orders               " +
+                "WHERE                                              " +
+                "        orders.region = 'beijing')                 ";
 
         rewriteRowFilter(USER_A, sql, expected);
     }
@@ -385,9 +494,33 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
      */
     @Test
     public void testInsertSelectSelect() {
-        String sql = "INSERT INTO print_sink SELECT * FROM (SELECT * FROM orders)";
+        String sql = "INSERT INTO print_sink SELECT * FROM (SELECT * FROM orders) AS o";
+
         // the following () is what Calcite would automatically add
-        String expected = "INSERT INTO print_sink (SELECT * FROM (SELECT * FROM orders WHERE region = 'beijing'))";
+        String expected = "INSERT INTO print_sink (                 " +
+                "SELECT                                             " +
+                "       o.order_id                                 ," +
+                "       o.order_date                               ," +
+                "       o.customer_name                            ," +
+                "       o.product_id                               ," +
+                "       o.price                                    ," +
+                "       o.order_status                             ," +
+                "       o.region                                    " +
+                "FROM (                                             " +
+                "       SELECT                                      " +
+                "               orders.order_id                    ," +
+                "               orders.order_date                  ," +
+                "               orders.customer_name               ," +
+                "               orders.product_id                  ," +
+                "               orders.price                       ," +
+                "               orders.order_status                ," +
+                "               orders.region                       " +
+                "       FROM                                        " +
+                "               hive.default.orders AS orders       " +
+                "       WHERE                                       " +
+                "               orders.region = 'beijing'           " +
+                "     ) AS o                                        " +
+                ")                                                  ";
 
         rewriteRowFilter(USER_A, sql, expected);
     }
