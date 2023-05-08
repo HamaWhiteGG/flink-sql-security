@@ -2,8 +2,9 @@ package com.hw.security.flink.visitor;
 
 import com.google.common.collect.ImmutableList;
 import com.hw.security.flink.SecurityContext;
-import com.hw.security.flink.model.ColumnEntity;
 import com.hw.security.flink.enums.DataMaskType;
+import com.hw.security.flink.exception.CustomException;
+import com.hw.security.flink.model.ColumnEntity;
 import com.hw.security.flink.model.TableEntity;
 import com.hw.security.flink.visitor.basic.AbstractBasicVisitor;
 import org.apache.calcite.sql.*;
@@ -156,7 +157,7 @@ public class DataMaskVisitor extends AbstractBasicVisitor {
             Method declaredMethod = SqlSelect.class.getDeclaredMethod("setCustom", boolean.class);
             declaredMethod.invoke(sqlSelect, custom);
         } catch (Exception e) {
-            throw new SecurityException(e);
+            throw new CustomException(e);
         }
     }
 
@@ -165,7 +166,7 @@ public class DataMaskVisitor extends AbstractBasicVisitor {
             Method declaredMethod = SqlSelect.class.getDeclaredMethod("isCustom");
             return (boolean) declaredMethod.invoke(sqlSelect);
         } catch (Exception e) {
-            throw new SecurityException(e);
+            throw new CustomException(e);
         }
     }
 }

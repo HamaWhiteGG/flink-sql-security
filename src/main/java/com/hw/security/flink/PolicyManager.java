@@ -2,6 +2,7 @@ package com.hw.security.flink;
 
 import com.alibaba.fastjson2.JSON;
 import com.hw.security.flink.enums.DataMaskType;
+import com.hw.security.flink.exception.CustomException;
 import com.hw.security.flink.policy.DataMaskPolicy;
 import com.hw.security.flink.policy.RowFilterPolicy;
 import com.hw.security.flink.util.ResourceReader;
@@ -34,7 +35,7 @@ public class PolicyManager {
             byte[] bytes = ResourceReader.readFile(DATA_MASK_TYPES_FILE);
             this.maskTypeList = JSON.parseArray(new String(bytes), DataMaskType.class);
         } catch (Exception e) {
-            throw new SecurityException(String.format("read file %s error", DATA_MASK_TYPES_FILE), e);
+            throw new CustomException(String.format("read file %s error", DATA_MASK_TYPES_FILE), e);
         }
     }
 
@@ -85,7 +86,7 @@ public class PolicyManager {
     }
 
     public boolean addPolicy(DataMaskPolicy policy) {
-       return dataMaskPolicyList.add(policy);
+        return dataMaskPolicyList.add(policy);
     }
 
     public boolean removePolicy(DataMaskPolicy policy) {

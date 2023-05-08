@@ -1,5 +1,6 @@
 package com.hw.security.flink;
 
+import com.hw.security.flink.exception.CustomException;
 import com.hw.security.flink.model.ColumnEntity;
 import com.hw.security.flink.model.TableEntity;
 import com.hw.security.flink.visitor.DataMaskVisitor;
@@ -65,7 +66,7 @@ public class SecurityContext {
             // load class
             ctClass.toClass();
         } catch (Exception e) {
-            throw new SecurityException("Dynamic add field method exception.", e);
+            throw new CustomException("Dynamic add field method exception.", e);
         }
     }
 

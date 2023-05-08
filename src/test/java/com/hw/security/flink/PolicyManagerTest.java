@@ -13,7 +13,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
  */
 public class PolicyManagerTest {
 
-    private final PolicyManager policyManager =new PolicyManager();
+    private final PolicyManager policyManager = new PolicyManager();
 
     @Test
     public void testGetDataMaskType() {
