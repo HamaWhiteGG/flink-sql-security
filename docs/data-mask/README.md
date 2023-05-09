@@ -176,7 +176,7 @@ FROM (
      ) AS orders
 ```
 
-### 4.2 测试INSERT-SELEC、T
+### 4.2 测试INSERT-SELECT
 #### 4.2.1 输入SQL
 用户A执行下述SQL:
 ```sql
