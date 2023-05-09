@@ -136,8 +136,7 @@ WHERE
     orders.region = 'beijing' 
 ```
 #### 4.1.3 测试小结
-输入SQL中没有WHERE条件，只需要把行级过滤条件`region = 'beijing'`追加到WHERE后，同时带上表别名`orders`。
-
+输入SQL是一个简单SELECT语句，经过语法分析和语法校验后FROM类型是SqlBasicCall，SQL中的表名orders会被替换为完整的`hive.default.orders`，别名是`orders`。由于输入SQL中没有WHERE条件，只需要把行级过滤条件`region = 'beijing'`追加到WHERE后，同时带上表别名`orders`。
 
 ### 4.2 两表JOIN
 
