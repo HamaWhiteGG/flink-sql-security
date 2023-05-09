@@ -87,7 +87,7 @@ SELECT * FROM orders
 
 ### 3.2 详细方案
 主要通过Calcite提供的访问者模式自定义RowFilterVisitor来实现，遍历AST中所有的SqlSelect对象重新生成Where子句。
-下面详细描述替换输入表的步骤，整体流程如下图所示。
+下面详细描述替换Where子句的步骤，整体流程如下图所示。
 
 ![Row-level filter-rewrite the main process.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Row-level%20Filter-Rewrite%20the%20main%20process.png)
 
@@ -98,7 +98,7 @@ SELECT * FROM orders
 5. 递归处理Join的右节点，即跳回到步骤2。
 6. 根据当前执行SQL的用户名和表名来查找已配置的行级约束条件，并调用Calcite进行解析表达式操作，生成permissions(类型是上文提到的SqlBasicCall)。
 7. 给行级权限解析后的permissions增加别名，例如行级约束条件是region = '北京'，来自于orders表，别名是o。则此步骤处理后的结果是o.region = '北京'。
-8. 组装旧where和行级权限permissions来生成新的where，即把两个约束用AND联合起来，然后执行步骤9。
+8. 组装旧where和行级权限permissions来生成新的where，即把两个约束用and联合起来，然后执行步骤9。
 9. 用新where替换掉旧where。
 10. 继续遍历AST，找到里面的SELECT语句进行处理，跳回到步骤1。
 
@@ -107,7 +107,9 @@ SELECT * FROM orders
 [[6]](https://ververica.github.io/flink-cdc-connectors/master/content/%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B/mysql-postgres-tutorial-zh.html)官网，
 本文给`orders`表增加一个region字段，再增加`'connector'='print'`类型的print_sink表，其字段和`orders`表的一样。数据库建表及初始化SQL位于data/database目录下。
 
-测试用例中的catalog名称是`hive`，database名称是`default`。下载本文源码后，可通过Maven运行单元测试。
+测试用例中的catalog名称是`hive`，database名称是`default`。
+
+下载本文源码后，可通过Maven运行单元测试。
 
 ```shell
 $ cd flink-sql-security
@@ -134,7 +136,7 @@ WHERE
     orders.region = 'beijing' 
 ```
 #### 4.1.3 测试小结
-输入SQL中没有WHERE条件，只需要把行级过滤条件`region = 'beijing'`追加到WHERE后即可。
+输入SQL中没有WHERE条件，只需要把行级过滤条件`region = 'beijing'`追加到WHERE后，同时带上表别名`orders`。
 
 
 ### 4.2 两表JOIN
@@ -177,7 +179,9 @@ WHERE
     AND o.region = 'beijing'
 ```
 #### 4.2.3 测试小结
-两张表进行JOIN时，左表order配置有行级约束条件`region = 'beijing'`，而且WHERE子句后已有约束条件`o.price > 45.0 OR o.customer_name = 'John'`，因此会把`region = 'beijing'`增加左表的别名o得到 o.region = 'beijing'，然后在组装的时候给已有的`price > 45.0 OR customer_name = 'John'`增加括号。
+两张表进行JOIN时，左表order配置有行级约束条件`region = 'beijing'`，而且WHERE子句后已有约束条件`o.price > 45.0 OR o.customer_name = 'John'`.
+
+因此先把`region = 'beijing'`增加左表的别名o得到 o.region = 'beijing'，然后在组装的时候给已有的`price > 45.0 OR customer_name = 'John'`两侧增加括号。
 
 ### 4.3 INSERT来自带子查询的SELECT
 #### 4.3.1 输入SQL
@@ -202,7 +206,7 @@ INSERT INTO print_sink (
 )
 ```
 #### 4.3.3 测试小结
-无论运行SQL类型是INSERT、SELECT或者其他，只会找到查询`oders`表的子句，然后对其组装行级权限条件。
+无论运行SQL类型是INSERT、SELECT或者其他，只会找到查询`orders`表的子句，然后对其组装行级权限条件。
 
 
 ## 五、参考文献
