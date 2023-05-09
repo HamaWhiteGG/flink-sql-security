@@ -87,12 +87,20 @@ SELECT * FROM orders
 
 ### 3.2 详细方案
 主要通过Calcite提供的访问者模式自定义RowFilterVisitor来实现，遍历AST中所有的SqlSelect对象重新生成Where子句。
-
-主流程如下图所示，遍历AST中SELECT语句，根据其From的类型进行不同的操作，例如针对SqlJoin类型，要分别遍历其Left和Right节点，而且要支持递归操作以便支持三张表及以上JOIN；针对SqlIdentifier类型，要额外判断下是否来自JOIN，如果是的话且JOIN时且未定义表别名，则用表名作为别名；针对SqlBasicCall类型，如果来自于子查询，说明已在子查询中组装过行级权限条件，则直接返回当前Where即可，否则分别取出表名和别名。
-
-然后再获取行级权限条件解析后生成SqlBasicCall类型的Permissions，并给Permissions增加别名，最后把已有Where和Permissions进行组装生成新的Where，来作为SqlSelect对象的Where约束。
+下面详细描述替换输入表的步骤，整体流程如下图所示。
 
 ![Row-level filter-rewrite the main process.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Row-level%20Filter-Rewrite%20the%20main%20process.png)
+
+1. 遍历AST中的SELECT语句。
+2. 判断SELECT语句中的FROM类型，按照不同类型对应执行下面的步骤3、4和10。
+3. 如果FROM是SqlJoin类型，则分别遍历其左Left和Right右节点，即执行当前步骤3和步骤5。由于可能是三张表及以上的Join，因此进行递归处理，即针对其左节点跳回到步骤2。
+4. 如果FROM是SqlBasicCall类型，还需要判断是否来自子查询，是则跳转到步骤10继续遍历AST，后续步骤1会对子查询中的SELECT语句进行处理。否则跳转到步骤6。
+5. 递归处理Join的右节点，即跳回到步骤2。
+6. 根据当前执行SQL的用户名和表名来查找已配置的行级约束条件，并调用Calcite进行解析表达式操作，生成permissions(类型是上文提到的SqlBasicCall)。
+7. 给行级权限解析后的permissions增加别名，例如行级约束条件是region = '北京'，来自于orders表，别名是o。则此步骤处理后的结果是o.region = '北京'。
+8. 组装旧where和行级权限permissions来生成新的where，即把两个约束用AND联合起来，然后执行步骤9。
+9. 用新where替换掉旧where。
+10. 继续遍历AST，找到里面的SELECT语句进行处理，跳回到步骤1。
 
 ## 四、用例测试
 用例测试数据来自于CDC Connectors for Apache Flink
@@ -105,178 +113,97 @@ SELECT * FROM orders
 $ cd flink-sql-security
 $ mvn test
 ```
-详细测试用例可查看源码中的单测`RewriteRowFilterTest`和`ExecuteRowFilterTest`，下面只描述两个案例。
+详细测试用例可查看源码中的单测`RewriteRowFilterTest`和`ExecuteRowFilterTest`，下面只描述三个案例。
 
-### 4.3.1 测试SELECT
-##### 4.3.1.1 行级权限条件
-| 序号 |  用户名 | 表名 | 行级权限条件 | 
-| --- | --- | --- | --- | 
-| 1 | 用户A | orders | region = 'beijing' | 
-##### 4.3.1.2 输入SQL
+### 4.1 测试SELECT
+
+#### 4.1.1 输入SQL
 ```sql
-SELECT * FROM orders;
+SELECT order_id, customer_name, product_id, region FROM orders
 ```
-##### 4.3.1.3 输出SQL
+#### 4.1.2 输出SQL
 ```sql
-SELECT * FROM orders WHERE region = 'beijing';
+SELECT
+    orders.order_id,
+    orders.customer_name,
+    orders.product_id,
+    orders.region
+FROM
+    hive.default.orders AS orders
+WHERE
+    orders.region = 'beijing' 
 ```
-##### 4.3.1.4 测试小结
+#### 4.1.3 测试小结
 输入SQL中没有WHERE条件，只需要把行级过滤条件`region = 'beijing'`追加到WHERE后即可。
 
-#### 4.3.2 SELECT带复杂WHERE约束
-##### 4.3.2.1 行级权限条件
-| 序号 |  用户名 | 表名 | 行级权限条件 | 
-| --- | --- | --- | --- | 
-| 1 | 用户A | orders | region = 'beijing' | 
-##### 4.3.2.2 输入SQL
-```sql
-SELECT * FROM orders WHERE price > 45.0 OR customer_name = 'John';
-```
-##### 4.3.2.3 输出SQL
-```sql
-SELECT * FROM orders WHERE (price > 45.0 OR customer_name = 'John') AND region = 'beijing';
-```
-##### 4.3.2.4 测试小结
-输入SQL中有两个约束条件，中间用的是OR，因此在组装`region = 'beijing'`时，要给已有的`price > 45.0 OR customer_name = 'John'`增加括号。
 
-#### 4.3.3 两表JOIN且含子查询
-##### 4.3.3.1 行级权限条件
-| 序号 |  用户名 | 表名 | 行级权限条件 | 
-| --- | --- | --- | --- | 
-| 1 | 用户A | orders | region = 'beijing' | 
-##### 4.3.3.2 输入SQL
+### 4.2 两表JOIN
+
+#### 4.2.1 输入SQL
 ```sql
-SELECT
-    o.*,
+SELECT 
+    o.order_id, 
+    o.customer_name,
+    o.product_id,
+    o.region,
     p.name,
-    p.description
+    p.description 
 FROM 
-    (SELECT
-        *
-     FROM 
-        orders
-     WHERE 
-        order_status = FALSE
-    ) AS o
-LEFT JOIN products AS p ON o.product_id = p.id
-WHERE
-    o.price > 45.0 OR o.customer_name = 'John' 
+    orders AS o 
+LEFT JOIN 
+    products AS p 
+ON 
+    o.product_id = p.id 
+WHERE 
+    o.price > 45.0 OR o.customer_name = 'John'
 ```
-##### 4.3.3.3 输出SQL
+#### 4.2.2 输出SQL
 ```sql
-SELECT
-    o.*,
-    p.name,
-    p.description
+SELECT 
+    o.order_id, 
+    o.customer_name, 
+    o.product_id, 
+    o.region, 
+    p.name, 
+    p.description 
 FROM 
-    (SELECT
-        *
-     FROM 
-        orders
-     WHERE 
-        order_status = FALSE AND region = 'beijing'
-    ) AS o
-LEFT JOIN products AS p ON o.product_id = p.id
-WHERE
-    o.price > 45.0 OR o.customer_name = 'John' 
+    hive.default.orders AS o 
+LEFT JOIN 
+    hive.default.products AS p 
+ON 
+    o.product_id = p.id 
+WHERE 
+    (o.price > 45.0 OR o.customer_name = 'John') 
+    AND o.region = 'beijing'
 ```
-##### 4.3.3.4 测试小结
-针对比较复杂的SQL，例如两表在JOIN时且其中左表来自于子查询`SELECT * FROM orders WHERE order_status = FALSE`，行级过滤条件`region = 'beijing'`只会追加到子查询的里面。
+#### 4.2.3 测试小结
+两张表进行JOIN时，左表order配置有行级约束条件`region = 'beijing'`，而且WHERE子句后已有约束条件`o.price > 45.0 OR o.customer_name = 'John'`，因此会把`region = 'beijing'`增加左表的别名o得到 o.region = 'beijing'，然后在组装的时候给已有的`price > 45.0 OR customer_name = 'John'`增加括号。
 
-
-#### 4.3.4 三表JOIN
-##### 4.3.4.1 行级权限条件
-| 序号 |  用户名 | 表名 | 行级权限条件 | 
-| --- | --- | --- | --- | 
-| 1 | 用户A | orders | region = 'beijing' | 
-| 2 | 用户A | products | name = 'hammer' | 
-| 3 | 用户A | shipments | is_arrived = FALSE | 
-##### 4.3.4.2 输入SQL
+### 4.3 INSERT来自带子查询的SELECT
+#### 4.3.1 输入SQL
 ```sql
-SELECT
-  o.*,
-  p.name,
-  p.description,
-  s.shipment_id,
-  s.origin,
-  s.destination,
-  s.is_arrived
-FROM
-  orders AS o
-  LEFT JOIN products AS p ON o.product_id=p.id
-  LEFT JOIN shipments AS s ON o.order_id=s.order_id;
+INSERT INTO print_sink SELECT * FROM orders
 ```
-##### 4.3.4.3 输出SQL
+#### 4.3.2 输出SQL
 ```sql
-SELECT
-  o.*,
-  p.name,
-  p.description,
-  s.shipment_id,
-  s.origin,
-  s.destination,
-  s.is_arrived
-FROM
-  orders AS o
-  LEFT JOIN products AS p ON o.product_id=p.id
-  LEFT JOIN shipments AS s ON o.order_id=s.order_id
-WHERE
-  o.region='beijing'
-  AND p.name='hammer'
-  AND s.is_arrived=FALSE;
+INSERT INTO print_sink (
+    SELECT 
+        orders.order_id, 
+        orders.order_date, 
+        orders.customer_name, 
+        orders.product_id, 
+        orders.price, 
+        orders.order_status, 
+        orders.region 
+    FROM 
+        hive.default.orders AS orders 
+    WHERE 
+        orders.region = 'beijing'
+)
 ```
-##### 4.3.4.4 测试小结
-三张表进行JOIN时，会分别获取`orders`、`products`、`shipments`三张表的行级权限条件: `region = 'beijing'`、`name = 'hammer'`和`is_arrived = FALSE`，然后增加`orders`表的别名o、`products`表的别名p、`shipments`表的别名s，最后组装到WHERE子句后面。
-
-#### 4.3.5 INSERT来自带子查询的SELECT
-##### 4.3.5.1 行级权限条件
-| 序号 |  用户名 | 表名 | 行级权限条件 | 
-| --- | --- | --- | --- | 
-| 1 | 用户A | orders | region = 'beijing' | 
-##### 4.3.5.2 输入SQL
-```sql
-INSERT INTO print_sink SELECT * FROM (SELECT * FROM orders);
-```
-##### 4.3.5.3 输出SQL
-```sql
-INSERT INTO print_sink (SELECT * FROM (SELECT * FROM orders WHERE region = 'beijing'));
-```
-##### 4.3.5.4 测试小结
+#### 4.3.3 测试小结
 无论运行SQL类型是INSERT、SELECT或者其他，只会找到查询`oders`表的子句，然后对其组装行级权限条件。
 
-#### 4.3.6 运行SQL
-测试两个不同用户执行相同的SQL，两个用户的行级权限条件不一样。
-##### 4.3.6.1 行级权限条件
-| 序号 |  用户名 | 表名 | 行级权限条件 | 
-| --- | --- | --- | --- | 
-| 1 | 用户A | orders | region = 'beijing' | 
-| 2 | 用户B | orders | region = 'hangzhou' | 
-
-##### 4.3.6.2 输入SQL
-```sql
-SELECT * FROM orders;
-```
-##### 4.3.6.3 执行SQL
-用户A的真实执行SQL:
-```sql
-SELECT * FROM orders WHERE region = 'beijing';
-```
-
-用户B的真实执行SQL:
-```sql 
-SELECT * FROM orders WHERE region = 'hangzhou';
-```
-##### 4.3.6.4 测试小结
-用户调用下面的执行方法，除传递要执行的SQL参数外，只需要额外指定执行的用户即可，便能自动按照行级权限限制来执行。
-```java
-/**
- * Execute the single sql with user permissions
- */
-public TableResult execute(String username, String singleSql) {
-    System.setProperty(EXECUTE_USERNAME, username);
-    return tableEnv.executeSql(singleSql);
-}
-```
 
 ## 五、参考文献
 1. [数据管理DMS-敏感数据管理-行级管控](https://help.aliyun.com/document_detail/161149.html)
