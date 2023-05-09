@@ -30,7 +30,9 @@
 例如可以使用数据脱敏技术将信用卡号码、社会安全号码等敏感信息替换为随机生成的数字或字母，以保护这些信息的隐私和安全。
 
 ### 1.2 行级权限
-行级权限即横向数据安全保护，可以解决不同人员只允许访问不同数据行的问题。
+行级权限(Row-Level Security)是一种数据权限控制机制，它允许系统管理员或数据所有者对数据库中的数据行进行细粒度的访问控制。
+行级权限可以限制用户对数据库中某些行的读取或修改，以确保敏感数据只能被授权人员访问。行级权限可以基于多种条件来定义，如用户角色、组织结构、地理位置等。通过行级权限控制，可以有效地防止未经授权的数据访问和泄露，提高数据的安全性和保密性。
+在大型企业和组织中，行级权限通常被广泛应用于数据库、电子表格和其他数据存储系统中，以满足安全和合规性的要求。
 
 ### 1.3 简单案例
 例如针对订单表，在数据脱敏方面，**用户A**查看到的顾客姓名(`customer_name`字段)全部被掩盖掉，**用户B**查看到顾客姓名只会显示前4位，剩下的用`x`代替。
@@ -48,7 +50,7 @@
 可以参考作者文章[[FlinkSQL字段血缘解决方案及源码]](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)，本文根据Flink1.16修正和简化后的执行流程如下图所示。
 ![FlinkSQL simple-execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/FlinkSQL%20simple-execution%20flowchart.png)
 
-在`CalciteParser.parse()`处理后会得到一个SqlNode类型的抽象语法树，本文会针对此抽象语法树来组装脱敏和行级过滤条件后生成新的AST，以实现数据脱敏和行级权限控制。
+在`CalciteParser`进行`parse()`和`validate()`处理后会得到一个SqlNode类型的抽象语法树(`Abstract Syntax Tree`，简称AST)，本文会针对此抽象语法树来组装行级过滤条件后生成新的AST，以实现行级权限控制。
 
 ## 三、解决方案
 ### 3.1 数据脱敏

@@ -10,7 +10,9 @@
 
 ## 一、基础知识
 ### 1.1 行级权限
-行级权限即横向数据安全保护，可以解决不同人员只允许访问不同数据行的问题。
+行级权限(Row-Level Security)是一种数据权限控制机制，它允许系统管理员或数据所有者对数据库中的数据行进行细粒度的访问控制。
+行级权限可以限制用户对数据库中某些行的读取或修改，以确保敏感数据只能被授权人员访问。行级权限可以基于多种条件来定义，如用户角色、组织结构、地理位置等。通过行级权限控制，可以有效地防止未经授权的数据访问和泄露，提高数据的安全性和保密性。
+在大型企业和组织中，行级权限通常被广泛应用于数据库、电子表格和其他数据存储系统中，以满足安全和合规性的要求。
 
 例如针对订单表，**用户A**只能查看到**北京**区域的数据，**用户B**只能查看到**杭州**区域的数据。
 ![Row-level filter example data.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Row-level%20filter%20example%20data.png)
@@ -62,7 +64,7 @@ SELECT * FROM orders
 可以参考作者文章[[FlinkSQL字段血缘解决方案及源码]](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)，本文根据Flink1.16修正和简化后的执行流程如下图所示。
 ![FlinkSQL simple-execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/FlinkSQL%20simple-execution%20flowchart.png)
 
-在`CalciteParser.parse()`处理后会得到一个SqlNode类型的抽象语法树(`Abstract Syntax Tree`，简称AST)，本文会针对此抽象语法树来组装行级过滤条件后生成新的AST，以实现行级权限控制。
+在`CalciteParser`进行`parse()`和`validate()`处理后会得到一个SqlNode类型的抽象语法树(`Abstract Syntax Tree`，简称AST)，本文会针对此抽象语法树来组装行级过滤条件后生成新的AST，以实现行级权限控制。
 
 #### 3.1.2 Calcite对象继承关系
 下面章节要用到Calcite中的SqlNode、SqlCall、SqlIdentifier、SqlJoin、SqlBasicCall和SqlSelect等类，此处进行简单介绍以及展示它们间继承关系，以便读者阅读本文源码。
