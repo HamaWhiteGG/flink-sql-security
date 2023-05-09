@@ -9,7 +9,7 @@
 | 1 | HamaWhite | 1.0.0 | 2022-12-15 | 1. 支持行级权限 |
 | 2 | HamaWhite | 1.0.1 | 2023-04-11 | 1. 通过 [manifold-ext](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-ext) 扩展Flink ParserImpl类的方法</br> 2. 自定义calcite visitor来增加行级权限，不再改SqlSelect源码 |
 | 3 | HamaWhite | 2.0.0 | 2023-04-23 | 1. 支持数据脱敏 |
-| 4 | HamaWhite | 2.0.1 | 2023-05-07 | 1. 语法校验后再增加权限 |
+| 4 | HamaWhite | 2.0.1 | 2023-05-07 | 1. 语法校验后再增加权限约束 |
 
 
 <br/>
@@ -52,27 +52,27 @@
 
 ## 三、解决方案
 ### 3.1 数据脱敏
-针对输入的Flink SQL，在`CalciteParser.parse()`进行语法解析后生成抽象语法树(`Abstract Syntax Tree`，简称AST)后，采用自定义
+针对输入的Flink SQL，在`CalciteParser`进行语法解析(parse)和语法校验(validate)后生成抽象语法树(`Abstract Syntax Tree`，简称AST)后，采用自定义
 `Calcite SqlBasicVisitor`的方法遍历AST中的所有`SqlSelect`，获取到里面的每个输入表。如果输入表中字段有配置脱敏条件，则针对输入表生成子查询语句，
 并把脱敏字段改写成`CAST(脱敏函数(字段名) AS 字段类型) AS 字段名`,再通过`CalciteParser.parseExpression()`把子查询转换成SqlSelect，
 并用此SqlSelect替换原AST中的输入表来生成新的AST，最后得到新的SQL来继续执行。
 ![FlinkSQL data mask solution.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/FlinkSQL%20data%20mask%20solution.png)
 
 ### 3.2 行级权限
-如果执行的SQL包含对表的查询操作，则一定会构建Calcite SqlSelect对象。因此限制表的行级权限，只要对Calcite SqlSelect对象的Where条件进行修改即可，而不需要解析用户执行的各种SQL来查找配置过行级权限条件约束的表。
-在抽象语法树构造出SqlSelect对象后，通过Calcite提供的访问者模式自定义visitor来重新生成新的SqlSelect Where条件。
+如果输入SQL包含对表的查询操作，则一定会构建Calcite SqlSelect对象。因此限制表的行级权限，只要对Calcite SqlSelect对象的Where条件进行修改即可，而不需要解析用户执行的各种SQL来查找配置过行级权限条件约束的表。在`CalciteParser`进行语法解析(parse)和语法校验(validate)后生成抽象语法树AST，其会构造出SqlSelect对象，采用自定义`Calcite SqlBasicVisitor`来重新生成新的SqlSelect Where条件。
 
 首先通过执行用户和表名来查找配置的行级权限条件，系统会把此条件用CalciteParser提供的`parseExpression(String sqlExpression)`方法解析生成一个SqlBasicCall再返回。然后结合用户执行的SQL和配置的行级权限条件重新组装Where条件，即生成新的带行级过滤条件Abstract Syntax Tree，最后基于新AST(即新SQL)再执行。
 ![FlinkSQL row-level filter solution.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/FlinkSQL%20row-level%20filter%20solution.png)
 
 ### 3.3 整体执行流程
-针对输入的Flink SQL，在`CalciteParser.parse()`进行语法解析后生成AST后，由于行级权限会修改SELECT语句中的Where子句。
-因此先根据行级权限方案替换AST中的Where子句，然后再根据数据脱敏方案把AST中的输入表改为子查询，最后得到新的SQL来继续执行。
+针对输入的Flink SQL，由`CalciteParser`进行语法解析和语法校验后生成抽象语法树AST。由于行级权限会修改SELECT语句中的Where子句，为避免修改数据脱敏生成子SELECT语句中的WHERE，因此先根据行级权限方案替换AST中的Where子句，然后再根据数据脱敏方案把AST中的输入表改为子查询，最后得到新的SQL来继续执行。
 ![Data mask and Row-level filter overall execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Data%20mask%20and%20Row-level%20filter%20overall%20execution%20flowchart.png)
 
 
 ## 四、案例讲解
 项目源码中有比较多的单元测试用例，可用于学习和测试，下面只描述部分测试点。
+
+测试用例中的catalog名称是`hive`，database名称是`default`。
 
 ```shell
 $ cd flink-sql-security
@@ -90,10 +90,10 @@ SELECT order_id, customer_name, product_id, region FROM orders
 ### 4.2 用户A的最终执行SQL
 ```sql
 SELECT
-    order_id,
-    customer_name,
-    product_id,
-    region
+    orders.order_id,
+    orders.customer_name,
+    orders.product_id,
+    orders.region
 FROM (
     SELECT 
          order_id,
@@ -104,19 +104,19 @@ FROM (
          order_status,
          region
     FROM 
-         orders
+         hive.default.orders
      ) AS orders
 WHERE
-    region = 'beijing'
+    orders.region = 'beijing'
 ```
 
 ### 4.3 用户B的最终执行SQL
 ```sql
 SELECT
-    order_id,
-    customer_name,
-    product_id,
-    region
+    orders.order_id,
+    orders.customer_name,
+    orders.product_id,
+    orders.region
 FROM (
     SELECT 
          order_id,
@@ -127,11 +127,12 @@ FROM (
          order_status,
          region
     FROM 
-         orders
+         hive.default.orders
      ) AS orders
 WHERE
-    region = 'hangzhou'
+    orders.region = 'hangzhou'
 ```
 
 ## 五、下一步计划
-1. 开发ranger-flink-plugin
+1. FlinkSQL Access策略，即库、表、字段的权限控制。
+2. ranger-flink-plugin。
