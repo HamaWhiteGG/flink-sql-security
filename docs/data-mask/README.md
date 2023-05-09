@@ -122,7 +122,9 @@ SELECT * FROM orders
 [[4]](https://ververica.github.io/flink-cdc-connectors/master/content/%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B/mysql-postgres-tutorial-zh.html)官网，
 本文给`orders`表增加一个region字段，再增加`'connector'='print'`类型的print_sink表，其字段和`orders`表的一样。数据库建表及初始化SQL位于data/database目录下。
 
-测试用例中的catalog名称是`hive`，database名称是`default`。下载本文源码后，可通过Maven运行单元测试。
+测试用例中的catalog名称是`hive`，database名称是`default`。
+
+下载本文源码后，可通过Maven运行单元测试。
 ```shell
 $ cd flink-sql-security
 $ mvn test
