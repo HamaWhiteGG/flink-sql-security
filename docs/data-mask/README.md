@@ -120,9 +120,7 @@ SELECT * FROM orders
 ## 四、用例测试
 用例测试数据来自于CDC Connectors for Apache Flink
 [[4]](https://ververica.github.io/flink-cdc-connectors/master/content/%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B/mysql-postgres-tutorial-zh.html)官网，
-本文给`orders`表增加一个region字段，再增加`'connector'='print'`类型的print_sink表，其字段和`orders`表的一样。
-
-测试用例中的Catalog名称是`hive`，Database是`default`。
+本文给`orders`表增加一个region字段，再增加`'connector'='print'`类型的print_sink表，其字段和`orders`表的一样。测试用例中的Catalog名称是`hive`，Database是`default`。
 
 下载本文源码后，可通过Maven运行单元测试。
 ```shell
@@ -139,7 +137,7 @@ $ mvn test
 SELECT order_id, customer_name, product_id, region FROM orders
 ```
 #### 4.1.2 根据脱敏条件重新生成SQL
-1. 输入SQL是一个简单SELECT语句，经过语法分析和校验后FROM类型是`SqlBasicCall`，SQL中的表名`orders`会被替换为完整的`hive.default.orders`，别名是`orders`。
+1. 输入SQL是一个简单SELECT语句，经过语法分析和语法校验后FROM类型是`SqlBasicCall`，SQL中的表名`orders`会被替换为完整的`hive.default.orders`，别名是`orders`。
 2. 由于用户A针对字段`customer_name`定义脱敏条件MASK(对应函数是脱敏函数是`mask`)，该字段在流程图中的步骤8中被改写为`CAST(mask(customer_name) AS STRING) AS customer_name`，其余字段未定义脱敏条件则保持不变。
 3. 然后在步骤8的操作中，表名`hive.default.orders`被改写成如下子查询，子查询两侧用括号`()`进行包裹，并且用 `AS 别名`来增加表别名。
 
@@ -188,13 +186,13 @@ INSERT INTO print_sink SELECT * FROM orders
 通过自定义Calcite DataMaskVisitor访问生成的AST，能找到对应的SELECT语句如下，注意在语法校验阶段 `*` 会被改写成表中所有字段。
 ```sql
 SELECT 
-     order_id,
-     order_date,
-     customer_name,
-     product_id, 
-     price,
-     order_status,
-     region
+     orders.order_id,
+     orders.order_date,
+     orders.customer_name,
+     orders.product_id, 
+     orders.price,
+     orders.order_status,
+     orders.region
 FROM
      hive.default.orders  AS orders
 ```
