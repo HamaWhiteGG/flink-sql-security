@@ -1,10 +1,10 @@
 package com.hw.security.flink.exception;
 
 /**
- * @description: SecurityException
+ * @description: CustomException
  * @author: HamaWhite
  */
-public class SecurityException extends RuntimeException {
+public class CustomException extends RuntimeException {
 
     private static final long serialVersionUID = 193141189399279147L;
 
@@ -13,7 +13,7 @@ public class SecurityException extends RuntimeException {
      *
      * @param message The exception message
      */
-    public SecurityException(String message) {
+    public CustomException(String message) {
         super(message);
     }
 
@@ -22,7 +22,7 @@ public class SecurityException extends RuntimeException {
      *
      * @param cause The exception that caused this exception
      */
-    public SecurityException(Throwable cause) {
+    public CustomException(Throwable cause) {
         super(cause);
     }
 
@@ -32,7 +32,7 @@ public class SecurityException extends RuntimeException {
      * @param message The exception message
      * @param cause   The exception that caused this exception
      */
-    public SecurityException(String message, Throwable cause) {
+    public CustomException(String message, Throwable cause) {
         super(message, cause);
     }
 }

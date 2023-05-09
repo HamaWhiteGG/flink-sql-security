@@ -32,7 +32,7 @@ public class ParserImplExtension {
      * @return a parsed SQL node
      * @throws SqlParserException if an exception is thrown when parsing the statement
      */
-    public static SqlNode parseExpression(@This @Jailbreak ParserImpl thiz,String sqlExpression) {
+    public static SqlNode parseExpression(@This @Jailbreak ParserImpl thiz, String sqlExpression) {
         // add @Jailbreak annotation to access private variables
         CalciteParser parser = thiz.calciteParserSupplier.get();
         return parser.parseExpression(sqlExpression);

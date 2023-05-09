@@ -52,7 +52,7 @@ SELECT * FROM orders
 可以参考作者文章[[FlinkSQL字段血缘解决方案及源码]](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)，本文根据Flink1.16修正和简化后的执行流程如下图所示。
 ![FlinkSQL simple-execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/FlinkSQL%20simple-execution%20flowchart.png)
 
-在`CalciteParser.parse()`处理后会得到一个SqlNode类型的抽象语法树，本文会针对此抽象语法树来组装脱敏条件后来生成新的AST，以实现数据脱敏控制。
+在`CalciteParser`进行`parse()`和`validate()`处理后会得到一个SqlNode类型的抽象语法树(`Abstract Syntax Tree`，简称AST)，本文会针对此抽象语法树来组装行级过滤条件后生成新的AST，以实现行级权限控制。
 
 #### 3.1.2 Calcite对象继承关系
 下面章节要用到Calcite中的SqlNode、SqlCall、SqlIdentifier、SqlJoin、SqlBasicCall和SqlSelect等类，此处进行简单介绍以及展示它们间继承关系，以便读者阅读本文源码。
@@ -70,7 +70,7 @@ SELECT * FROM orders
 
 #### 3.1.3 解决思路
 
-针对输入的Flink SQL，在`CalciteParser.parse()`进行语法解析后生成抽象语法树(`Abstract Syntax Tree`，简称AST)后，采用自定义
+针对输入的Flink SQL，在`CalciteParser`进行语法解析(parse)和语法校验(validate)后生成抽象语法树(`Abstract Syntax Tree`，简称AST)后，采用自定义
 `Calcite SqlBasicVisitor`的方法遍历AST中的所有`SqlSelect`，获取到里面的每个输入表。如果输入表中字段有配置脱敏条件，则针对输入表生成子查询语句，
 并把脱敏字段改写成`CAST(脱敏函数(字段名) AS 字段类型) AS 字段名`,再通过`CalciteParser.parseExpression()`把子查询转换成SqlSelect，
 并用此SqlSelect替换原AST中的输入表来生成新的AST，最后得到新的SQL来继续执行。
@@ -90,17 +90,16 @@ SELECT * FROM orders
 
 ![Data mask-rewrite the main process.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Data%20mask-Rewrite%20the%20main%20process.png)
 
-1. 遍历AST中SELECT语句。
-2. 判断是否自定义的SELECT语句(由下面步骤10生成)，是则跳转到步骤11，否则继续步骤3。
-3. 判断SELECT语句中的FROM类型，按照不同类型对应执行下面的步骤4、5、6和11。
-4. 如果FROM是SqlJoin类型，则分别遍历其左Left和Right右节点，即执行当前步骤4和步骤7。由于可能是三张表及以上的Join，因此进行递归处理，即针对其左Left节点跳回到步骤3。
-5. 如果FROM是SqlIdentifier类型，则表示是表。但是输入SQL中没有定义表的别名，则用表名作为别名。跳转到步骤8。
-6. 如果FROM是SqlBasicCall类型，则表示带别名。但需要判断是否来自子查询，是则跳转到步骤11继续遍历AST，后续步骤1会对子查询中的SELECT语句进行处理。否则跳转到步骤8。
-7. 递归处理Join的右节点，即跳回到步骤3。
-8. 遍历表中的每个字段，如果某个字段有定义脱敏条件，则把改字段改写成格式`CAST(脱敏函数(字段名) AS 字段类型) AS 字段名`，否则用原字段名。
-9. 针对步骤8处理后的字段，构建子查询语句，形如 `(SELECT 字段名1, 字段名2, CAST(脱敏函数(字段名3) AS 字段类型) AS 字段名3、字段名4 FROM 表名) AS 表别名`。
-10. 对步骤9的子查询调用`CalciteParser.parseExpression()`进行解析，生成自定义SELECT语句，并替换掉原FROM。
-11. 继续遍历AST，找到里面的SELECT语句进行处理，跳回到步骤1。
+1. 遍历AST中的SELECT语句。
+2. 判断是否自定义的SELECT语句(由下面步骤9生成)，是则跳转到步骤10，否则继续步骤3。
+3. 判断SELECT语句中的FROM类型，按照不同类型对应执行下面的步骤4、5和10。
+4. 如果FROM是SqlJoin类型，则分别遍历其左Left和Right右节点，即执行当前步骤4和步骤6。由于可能是三张表及以上的Join，因此进行递归处理，即针对其左节点跳回到步骤3。
+5. 如果FROM是SqlBasicCall类型，还需要判断是否来自子查询，是则跳转到步骤10继续遍历AST，后续步骤1会对子查询中的SELECT语句进行处理。否则跳转到步骤7。
+6. 递归处理Join的右节点，即跳回到步骤3。
+7. 遍历表中的每个字段，如果某个字段有定义脱敏条件，则把改字段改写成格式`CAST(脱敏函数(字段名) AS 字段类型) AS 字段名`，否则用原字段名。
+8. 针对步骤7处理后的字段，构建子查询语句，形如 `(SELECT 字段名1, 字段名2, CAST(脱敏函数(字段名3) AS 字段类型) AS 字段名3、字段名4 FROM 表名) AS 表别名`。
+9. 对步骤8的子查询调用`CalciteParser.parseExpression()`进行解析，生成自定义的SELECT语句，并替换掉原FROM。
+10. 继续遍历AST，找到里面的SELECT语句进行处理，跳回到步骤1。
 
 #### 3.2.3 Hive及Ranger兼容性
 在Ranger中，默认的脱敏策略的如下所示。通过调研发现Ranger的大部分脱敏策略是通过调用Hive自带或自定义的系统函数实现的。
@@ -121,7 +120,9 @@ SELECT * FROM orders
 ## 四、用例测试
 用例测试数据来自于CDC Connectors for Apache Flink
 [[4]](https://ververica.github.io/flink-cdc-connectors/master/content/%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B/mysql-postgres-tutorial-zh.html)官网，
-本文给`orders`表增加一个region字段，同时增加`'connector'='print'`类型的print_sink表，其字段和`orders`表的一样。
+本文给`orders`表增加一个region字段，再增加`'connector'='print'`类型的print_sink表，其字段和`orders`表的一样。数据库建表及初始化SQL位于data/database目录下。
+
+测试用例中的catalog名称是`hive`，database名称是`default`。
 
 下载本文源码后，可通过Maven运行单元测试。
 ```shell
@@ -138,9 +139,9 @@ $ mvn test
 SELECT order_id, customer_name, product_id, region FROM orders
 ```
 #### 4.1.2 根据脱敏条件重新生成SQL
-1. 输入SQL是一个简单SELECT语句，其FROM类型是`SqlIdentifier`，由于没有定义别名，用表名`orders`作为别名。
+1. 输入SQL是一个简单SELECT语句，经过语法分析和语法校验后FROM类型是`SqlBasicCall`，SQL中的表名`orders`会被替换为完整的`hive.default.orders`，别名是`orders`。
 2. 由于用户A针对字段`customer_name`定义脱敏条件MASK(对应函数是脱敏函数是`mask`)，该字段在流程图中的步骤8中被改写为`CAST(mask(customer_name) AS STRING) AS customer_name`，其余字段未定义脱敏条件则保持不变。
-3. 然后在步骤9的操作中，表名`orders`被改写成如下子查询，子查询两侧用括号`()`进行包裹，并且用 `AS 别名`来增加表别名。
+3. 然后在步骤8的操作中，表名`hive.default.orders`被改写成如下子查询，子查询两侧用括号`()`进行包裹，并且用 `AS 别名`来增加表别名。
 
 ```sql
 (SELECT
@@ -152,17 +153,17 @@ SELECT order_id, customer_name, product_id, region FROM orders
      order_status,
      region
 FROM 
-    orders
+    hive.default.orders 
 ) AS orders
 ```
 #### 4.1.3 输出SQL和运行结果
 最终执行的改写后SQL如下所示，这样用户A查询到的顾客姓名`customer_name`字段都是掩盖后的数据。
 ```sql
 SELECT
-    order_id,
-    customer_name,
-    product_id,
-    region
+    orders.order_id,
+    orders.customer_name,
+    orders.product_id,
+    orders.region
 FROM (
     SELECT 
          order_id,
@@ -173,7 +174,7 @@ FROM (
          order_status,
          region
     FROM 
-         orders
+         hive.default.orders 
      ) AS orders
 ```
 
@@ -184,7 +185,19 @@ FROM (
 INSERT INTO print_sink SELECT * FROM orders
 ```
 #### 4.2.2 根据脱敏条件重新生成SQL
-通过自定义Calcite DataMaskVisitor访问生成的AST，能找到对应的SELECT语句是`SELECT order_id, customer_name, product_id, region FROM orders`。
+通过自定义Calcite DataMaskVisitor访问生成的AST，能找到对应的SELECT语句如下，注意在语法校验阶段 `*` 会被改写成表中所有字段。
+```sql
+SELECT 
+     orders.order_id,
+     orders.order_date,
+     orders.customer_name,
+     orders.product_id, 
+     orders.price,
+     orders.order_status,
+     orders.region
+FROM
+     hive.default.orders  AS orders
+```
 
 针对此SELECT语句的改写逻辑同上，不再阐述。
 
@@ -193,7 +206,13 @@ INSERT INTO print_sink SELECT * FROM orders
 ```sql
 INSERT INTO print_sink (
     SELECT 
-        * 
+        orders.order_id,
+        orders.order_date,
+        orders.customer_name,
+        orders.product_id,
+        orders.price,
+        orders.order_status,
+        orders.region
     FROM (
         SELECT 
             order_id, 
@@ -204,7 +223,7 @@ INSERT INTO print_sink (
             order_status, 
             region 
         FROM 
-            orders
+            hive.default.orders
     ) AS orders
 )
 ```

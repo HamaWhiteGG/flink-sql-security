@@ -10,7 +10,9 @@
 
 ## 一、基础知识
 ### 1.1 行级权限
-行级权限即横向数据安全保护，可以解决不同人员只允许访问不同数据行的问题。
+行级权限(Row-Level Security)是一种数据权限控制机制，它允许系统管理员或数据所有者对数据库中的数据行进行细粒度的访问控制。
+行级权限可以限制用户对数据库中某些行的读取或修改，以确保敏感数据只能被授权人员访问。行级权限可以基于多种条件来定义，如用户角色、组织结构、地理位置等。通过行级权限控制，可以有效地防止未经授权的数据访问和泄露，提高数据的安全性和保密性。
+在大型企业和组织中，行级权限通常被广泛应用于数据库、电子表格和其他数据存储系统中，以满足安全和合规性的要求。
 
 例如针对订单表，**用户A**只能查看到**北京**区域的数据，**用户B**只能查看到**杭州**区域的数据。
 ![Row-level filter example data.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Row-level%20filter%20example%20data.png)
@@ -38,7 +40,6 @@ SELECT * FROM orders
 | --- | --- | --- | --- |  --- |  --- |  --- | 
 | 10001 | 2020-07-30 10:08:22 | Jack | 50.50 | 102 | false | beijing |
 | 10002 | 2020-07-30 10:11:09 | Sally | 15.00 | 105 | false | beijing | 
-> 注: 系统底层最终执行的SQL是: `SELECT * FROM orders WHERE region = 'beijing'`。 
 
 <br/>
 
@@ -47,8 +48,6 @@ SELECT * FROM orders
 | --- | --- | --- | --- |  --- |  --- |  --- | 
 | 10003 | 2020-07-30 12:00:30 | Edward | 25.25 | 106 | false | hangzhou | 
 | 10004 | 2022-12-15 12:11:09 | John | 78.00 | 103 | false | hangzhou | 
-> 注: 系统底层最终执行的SQL是: `SELECT * FROM orders WHERE region = 'hangzhou'` 。
-
 
 ## 二、Hive行级权限解决方案
 在离线数仓工具Hive领域，由于发展多年已有Ranger来支持表数据的行级权限控制，详见参考文献[[2]](https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.0/authorization-ranger/content/row_level_filtering_in_hive_with_ranger_policies.html)。下图是在Ranger里配置Hive表行级过滤条件的页面，供参考。
@@ -65,7 +64,7 @@ SELECT * FROM orders
 可以参考作者文章[[FlinkSQL字段血缘解决方案及源码]](https://github.com/HamaWhiteGG/flink-sql-lineage/blob/main/README_CN.md)，本文根据Flink1.16修正和简化后的执行流程如下图所示。
 ![FlinkSQL simple-execution flowchart.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/FlinkSQL%20simple-execution%20flowchart.png)
 
-在`CalciteParser.parse()`处理后会得到一个SqlNode类型的抽象语法树(`Abstract Syntax Tree`，简称AST)，本文会针对此抽象语法树来组装行级过滤条件后生成新的AST，以实现行级权限控制。
+在`CalciteParser`进行`parse()`和`validate()`处理后会得到一个SqlNode类型的抽象语法树(`Abstract Syntax Tree`，简称AST)，本文会针对此抽象语法树来组装行级过滤条件后生成新的AST，以实现行级权限控制。
 
 #### 3.1.2 Calcite对象继承关系
 下面章节要用到Calcite中的SqlNode、SqlCall、SqlIdentifier、SqlJoin、SqlBasicCall和SqlSelect等类，此处进行简单介绍以及展示它们间继承关系，以便读者阅读本文源码。
@@ -83,461 +82,135 @@ SELECT * FROM orders
 
 #### 3.1.3 解决思路
 
-如果执行的SQL包含对表的查询操作，则一定会构建Calcite SqlSelect对象。因此限制表的行级权限，只要对Calcite SqlSelect对象的Where条件进行修改即可，而不需要解析用户执行的各种SQL来查找配置过行级权限条件约束的表。
-在抽象语法树构造出SqlSelect对象后，通过Calcite提供的访问者模式自定义visitor来重新生成新的SqlSelect Where条件。
+如果输入SQL包含对表的查询操作，则一定会构建Calcite SqlSelect对象。因此限制表的行级权限，只要对Calcite SqlSelect对象的Where条件进行修改即可，而不需要解析用户执行的各种SQL来查找配置过行级权限条件约束的表。在`CalciteParser`进行语法解析(parse)和语法校验(validate)后生成抽象语法树AST，其会构造出SqlSelect对象，采用自定义`Calcite SqlBasicVisitor`来重新生成新的SqlSelect Where条件。
 
 首先通过执行用户和表名来查找配置的行级权限条件，系统会把此条件用CalciteParser提供的`parseExpression(String sqlExpression)`方法解析生成一个SqlBasicCall再返回。然后结合用户执行的SQL和配置的行级权限条件重新组装Where条件，即生成新的带行级过滤条件Abstract Syntax Tree，最后基于新AST(即新SQL)再执行。
 ![FlinkSQL row-level filter solution.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/FlinkSQL%20row-level%20filter%20solution.png)
 
-### 3.2 重写SQL
+### 3.2 详细方案
 主要通过Calcite提供的访问者模式自定义RowFilterVisitor来实现，遍历AST中所有的SqlSelect对象重新生成Where子句。
-
-#### 3.2.1 主要流程
-主流程如下图所示，遍历AST中SELECT语句，根据其From的类型进行不同的操作，例如针对SqlJoin类型，要分别遍历其Left和Right节点，而且要支持递归操作以便支持三张表及以上JOIN；针对SqlIdentifier类型，要额外判断下是否来自JOIN，如果是的话且JOIN时且未定义表别名，则用表名作为别名；针对SqlBasicCall类型，如果来自于子查询，说明已在子查询中组装过行级权限条件，则直接返回当前Where即可，否则分别取出表名和别名。
-
-然后再获取行级权限条件解析后生成SqlBasicCall类型的Permissions，并给Permissions增加别名，最后把已有Where和Permissions进行组装生成新的Where，来作为SqlSelect对象的Where约束。
+下面详细描述替换Where子句的步骤，整体流程如下图所示。
 
 ![Row-level filter-rewrite the main process.png](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/Row-level%20Filter-Rewrite%20the%20main%20process.png)
 
-
-上述流程图的各个分支，都会在下面的**用例测试**章节中会举例说明。
-
-
-#### 3.2.2 核心源码
-核心源码位于RowFilterVisitor中新增的`addCondition()`、`addPermission()`、`buildWhereClause()`三个方法，下面给出核心控制主流程`addCondition()`的源码。
-
-```java
-/**
- * The main process of controlling row-level permissions
- */
-private SqlNode addCondition(SqlNode from, SqlNode where, boolean fromJoin) {
-    if (from instanceof SqlIdentifier) {
-        String tableName = from.toString();
-        // the table name is used as an alias for join
-        String tableAlias = fromJoin ? tableName : null;
-        return addPermission(where, tableName, tableAlias);
-    } else if (from instanceof SqlJoin) {
-        SqlJoin sqlJoin = (SqlJoin) from;
-        // support recursive processing, such as join for three tables, process left sqlNode
-        where = addCondition(sqlJoin.getLeft(), where, true);
-        // process right sqlNode
-        return addCondition(sqlJoin.getRight(), where, true);
-    } else if (from instanceof SqlBasicCall) {
-        // Table has an alias or comes from a sub-query
-        SqlNode[] tableNodes = ((SqlBasicCall) from).getOperands();
-        /*
-          If there is a sub-query in the Join, row-level filtering has been appended to the sub-query.
-          What is returned here is the SqlSelect type, just return the original where directly
-         */
-        if (!(tableNodes[0] instanceof SqlIdentifier)) {
-            return where;
-        }
-        String tableName = tableNodes[0].toString();
-        String tableAlias = tableNodes[1].toString();
-        return addPermission(where, tableName, tableAlias);
-    }
-    return where;
-}
-```
+1. 遍历AST中的SELECT语句。
+2. 判断SELECT语句中的FROM类型，按照不同类型对应执行下面的步骤3、4和10。
+3. 如果FROM是SqlJoin类型，则分别遍历其左Left和Right右节点，即执行当前步骤3和步骤5。由于可能是三张表及以上的Join，因此进行递归处理，即针对其左节点跳回到步骤2。
+4. 如果FROM是SqlBasicCall类型，还需要判断是否来自子查询，是则跳转到步骤10继续遍历AST，后续步骤1会对子查询中的SELECT语句进行处理。否则跳转到步骤6。
+5. 递归处理Join的右节点，即跳回到步骤2。
+6. 根据当前执行SQL的用户名和表名来查找已配置的行级约束条件，并调用Calcite进行解析表达式操作，生成permissions(类型是上文提到的SqlBasicCall)。
+7. 给行级权限解析后的permissions增加别名，例如行级约束条件是region = '北京'，来自于orders表，别名是o。则此步骤处理后的结果是o.region = '北京'。
+8. 组装旧where和行级权限permissions来生成新的where，即把两个约束用and联合起来，然后执行步骤9。
+9. 用新where替换掉旧where。
+10. 继续遍历AST，找到里面的SELECT语句进行处理，跳回到步骤1。
 
 ## 四、用例测试
 用例测试数据来自于CDC Connectors for Apache Flink
-[[6]](https://ververica.github.io/flink-cdc-connectors/master/content/%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B/mysql-postgres-tutorial-zh.html)官网，在此表示感谢。下载本文源码后，可通过Maven运行单元测试。
+[[6]](https://ververica.github.io/flink-cdc-connectors/master/content/%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B/mysql-postgres-tutorial-zh.html)官网，
+本文给`orders`表增加一个region字段，再增加`'connector'='print'`类型的print_sink表，其字段和`orders`表的一样。数据库建表及初始化SQL位于data/database目录下。
+
+测试用例中的catalog名称是`hive`，database名称是`default`。
+
+下载本文源码后，可通过Maven运行单元测试。
+
 ```shell
 $ cd flink-sql-security
 $ mvn test
 ```
+详细测试用例可查看源码中的单测`RewriteRowFilterTest`和`ExecuteRowFilterTest`，下面只描述三个案例。
 
-### 4.1 新建Mysql表及初始化数据
-Mysql新建表语句及初始化数据SQL详见源码[[flink-sql-security/data/database]](https://github.com/HamaWhiteGG/flink-sql-security/tree/main/data/database)里面的mysql_ddl.sql和mysql_init.sql文件，本文给`orders`表增加一个region字段。
+### 4.1 测试SELECT
 
-
-### 4.2 新建Flink表
-
-#### 4.2.1 新建mysql cdc类型的orders表
-
+#### 4.1.1 输入SQL
 ```sql
-DROP TABLE IF EXISTS orders;
-
-CREATE TABLE IF NOT EXISTS orders (
-    order_id INT PRIMARY KEY NOT ENFORCED,
-    order_date TIMESTAMP(0),
-    customer_name STRING,
-    product_id INT,
-    price DECIMAL(10, 5),
-    order_status BOOLEAN,
-    region STRING
-) WITH (
-    'connector'='mysql-cdc',
-    'hostname'='xxx.xxx.xxx.xxx',
-    'port'='3306',
-    'username'='root',
-    'password'='xxx',
-    'server-time-zone'='Asia/Shanghai',
-    'database-name'='demo',
-    'table-name'='orders'
-);
+SELECT order_id, customer_name, product_id, region FROM orders
 ```
-
-#### 4.2.2 新建mysql cdc类型的products表
-
-```sql
-DROP TABLE IF EXISTS products;
-
-CREATE TABLE IF NOT EXISTS products (
-    id INT PRIMARY KEY NOT ENFORCED,
-    name STRING,
-    description STRING
-) WITH (
-    'connector'='mysql-cdc',
-    'hostname'='xxx.xxx.xxx.xxx',
-    'port'='3306',
-    'username'='root',
-    'password'='xxx',
-    'server-time-zone'='Asia/Shanghai',
-    'database-name'='demo',
-    'table-name'='products'
-);
-```
-
-#### 4.2.3 新建mysql cdc类型shipments表
-
-```sql
-DROP TABLE IF EXISTS shipments;
-
-CREATE TABLE IF NOT EXISTS shipments (
-    shipment_id INT PRIMARY KEY NOT ENFORCED,
-    order_id INT,
-    origin STRING,
-    destination STRING,
-    is_arrived BOOLEAN
-) WITH (
-    'connector'='mysql-cdc',
-    'hostname'='xxx.xxx.xxx.xxx',
-    'port'='3306',
-    'username'='root',
-    'password'='xxx',
-    'server-time-zone'='Asia/Shanghai',
-    'database-name'='demo',
-    'table-name'='shipments'
-);
-```
-
-#### 4.2.4 新建print类型print_sink表
-
-```sql
-DROP TABLE IF EXISTS print_sink;
-
-CREATE TABLE IF NOT EXISTS print_sink (
-    order_id INT PRIMARY KEY NOT ENFORCED,
-    order_date TIMESTAMP(0),
-    customer_name STRING,
-    product_id INT,
-    price DECIMAL(10, 5),
-    order_status BOOLEAN,
-    region STRING
-) WITH (
-    'connector'='print'
-);
-```
-
-### 4.3 测试用例
-详细测试用例可查看源码中的单测，下面只描述部分测试点。
-
-#### 4.3.1 简单SELECT
-##### 4.3.1.1 行级权限条件
-| 序号 |  用户名 | 表名 | 行级权限条件 | 
-| --- | --- | --- | --- | 
-| 1 | 用户A | orders | region = 'beijing' | 
-##### 4.3.1.2 输入SQL
-```sql
-SELECT * FROM orders;
-```
-##### 4.3.1.3 输出SQL
-```sql
-SELECT * FROM orders WHERE region = 'beijing';
-```
-##### 4.3.1.4 测试小结
-输入SQL中没有WHERE条件，只需要把行级过滤条件`region = 'beijing'`追加到WHERE后即可。
-
-#### 4.3.2 SELECT带复杂WHERE约束
-##### 4.3.2.1 行级权限条件
-| 序号 |  用户名 | 表名 | 行级权限条件 | 
-| --- | --- | --- | --- | 
-| 1 | 用户A | orders | region = 'beijing' | 
-##### 4.3.2.2 输入SQL
-```sql
-SELECT * FROM orders WHERE price > 45.0 OR customer_name = 'John';
-```
-##### 4.3.2.3 输出SQL
-```sql
-SELECT * FROM orders WHERE (price > 45.0 OR customer_name = 'John') AND region = 'beijing';
-```
-##### 4.3.2.4 测试小结
-输入SQL中有两个约束条件，中间用的是OR，因此在组装`region = 'beijing'`时，要给已有的`price > 45.0 OR customer_name = 'John'`增加括号。
-
-#### 4.3.3 两表JOIN且含子查询
-##### 4.3.3.1 行级权限条件
-| 序号 |  用户名 | 表名 | 行级权限条件 | 
-| --- | --- | --- | --- | 
-| 1 | 用户A | orders | region = 'beijing' | 
-##### 4.3.3.2 输入SQL
+#### 4.1.2 输出SQL
 ```sql
 SELECT
-    o.*,
-    p.name,
-    p.description
-FROM 
-    (SELECT
-        *
-     FROM 
-        orders
-     WHERE 
-        order_status = FALSE
-    ) AS o
-LEFT JOIN products AS p ON o.product_id = p.id
-WHERE
-    o.price > 45.0 OR o.customer_name = 'John' 
-```
-##### 4.3.3.3 输出SQL
-```sql
-SELECT
-    o.*,
-    p.name,
-    p.description
-FROM 
-    (SELECT
-        *
-     FROM 
-        orders
-     WHERE 
-        order_status = FALSE AND region = 'beijing'
-    ) AS o
-LEFT JOIN products AS p ON o.product_id = p.id
-WHERE
-    o.price > 45.0 OR o.customer_name = 'John' 
-```
-##### 4.3.3.4 测试小结
-针对比较复杂的SQL，例如两表在JOIN时且其中左表来自于子查询`SELECT * FROM orders WHERE order_status = FALSE`，行级过滤条件`region = 'beijing'`只会追加到子查询的里面。
-
-
-#### 4.3.4 三表JOIN
-##### 4.3.4.1 行级权限条件
-| 序号 |  用户名 | 表名 | 行级权限条件 | 
-| --- | --- | --- | --- | 
-| 1 | 用户A | orders | region = 'beijing' | 
-| 2 | 用户A | products | name = 'hammer' | 
-| 3 | 用户A | shipments | is_arrived = FALSE | 
-##### 4.3.4.2 输入SQL
-```sql
-SELECT
-  o.*,
-  p.name,
-  p.description,
-  s.shipment_id,
-  s.origin,
-  s.destination,
-  s.is_arrived
+    orders.order_id,
+    orders.customer_name,
+    orders.product_id,
+    orders.region
 FROM
-  orders AS o
-  LEFT JOIN products AS p ON o.product_id=p.id
-  LEFT JOIN shipments AS s ON o.order_id=s.order_id;
-```
-##### 4.3.4.3 输出SQL
-```sql
-SELECT
-  o.*,
-  p.name,
-  p.description,
-  s.shipment_id,
-  s.origin,
-  s.destination,
-  s.is_arrived
-FROM
-  orders AS o
-  LEFT JOIN products AS p ON o.product_id=p.id
-  LEFT JOIN shipments AS s ON o.order_id=s.order_id
+    hive.default.orders AS orders
 WHERE
-  o.region='beijing'
-  AND p.name='hammer'
-  AND s.is_arrived=FALSE;
+    orders.region = 'beijing' 
 ```
-##### 4.3.4.4 测试小结
-三张表进行JOIN时，会分别获取`orders`、`products`、`shipments`三张表的行级权限条件: `region = 'beijing'`、`name = 'hammer'`和`is_arrived = FALSE`，然后增加`orders`表的别名o、`products`表的别名p、`shipments`表的别名s，最后组装到WHERE子句后面。
+#### 4.1.3 测试小结
+输入SQL是一个简单SELECT语句，经过语法分析和语法校验后FROM类型是SqlBasicCall，SQL中的表名orders会被替换为完整的`hive.default.orders`，别名是`orders`。由于输入SQL中没有WHERE条件，只需要把行级过滤条件`region = 'beijing'`追加到WHERE后，同时带上表别名`orders`。
 
-#### 4.3.5 INSERT来自带子查询的SELECT
-##### 4.3.5.1 行级权限条件
-| 序号 |  用户名 | 表名 | 行级权限条件 | 
-| --- | --- | --- | --- | 
-| 1 | 用户A | orders | region = 'beijing' | 
-##### 4.3.5.2 输入SQL
+### 4.2 两表JOIN
+
+#### 4.2.1 输入SQL
 ```sql
-INSERT INTO print_sink SELECT * FROM (SELECT * FROM orders);
+SELECT 
+    o.order_id, 
+    o.customer_name,
+    o.product_id,
+    o.region,
+    p.name,
+    p.description 
+FROM 
+    orders AS o 
+LEFT JOIN 
+    products AS p 
+ON 
+    o.product_id = p.id 
+WHERE 
+    o.price > 45.0 OR o.customer_name = 'John'
 ```
-##### 4.3.5.3 输出SQL
+#### 4.2.2 输出SQL
 ```sql
-INSERT INTO print_sink (SELECT * FROM (SELECT * FROM orders WHERE region = 'beijing'));
+SELECT 
+    o.order_id, 
+    o.customer_name, 
+    o.product_id, 
+    o.region, 
+    p.name, 
+    p.description 
+FROM 
+    hive.default.orders AS o 
+LEFT JOIN 
+    hive.default.products AS p 
+ON 
+    o.product_id = p.id 
+WHERE 
+    (o.price > 45.0 OR o.customer_name = 'John') 
+    AND o.region = 'beijing'
 ```
-##### 4.3.5.4 测试小结
-无论运行SQL类型是INSERT、SELECT或者其他，只会找到查询`oders`表的子句，然后对其组装行级权限条件。
+#### 4.2.3 测试小结
+两张表进行JOIN时，左表order配置有行级约束条件`region = 'beijing'`，而且WHERE子句后已有约束条件`o.price > 45.0 OR o.customer_name = 'John'`.
 
-#### 4.3.6 运行SQL
-测试两个不同用户执行相同的SQL，两个用户的行级权限条件不一样。
-##### 4.3.6.1 行级权限条件
-| 序号 |  用户名 | 表名 | 行级权限条件 | 
-| --- | --- | --- | --- | 
-| 1 | 用户A | orders | region = 'beijing' | 
-| 2 | 用户B | orders | region = 'hangzhou' | 
+因此先把`region = 'beijing'`增加左表的别名o得到 o.region = 'beijing'，然后在组装的时候给已有的`price > 45.0 OR customer_name = 'John'`两侧增加括号。
 
-##### 4.3.6.2 输入SQL
+### 4.3 INSERT来自带子查询的SELECT
+#### 4.3.1 输入SQL
 ```sql
-SELECT * FROM orders;
+INSERT INTO print_sink SELECT * FROM orders
 ```
-##### 4.3.6.3 执行SQL
-用户A的真实执行SQL:
+#### 4.3.2 输出SQL
 ```sql
-SELECT * FROM orders WHERE region = 'beijing';
+INSERT INTO print_sink (
+    SELECT 
+        orders.order_id, 
+        orders.order_date, 
+        orders.customer_name, 
+        orders.product_id, 
+        orders.price, 
+        orders.order_status, 
+        orders.region 
+    FROM 
+        hive.default.orders AS orders 
+    WHERE 
+        orders.region = 'beijing'
+)
 ```
-
-用户B的真实执行SQL:
-```sql 
-SELECT * FROM orders WHERE region = 'hangzhou';
-```
-##### 4.3.6.4 测试小结
-用户调用下面的执行方法，除传递要执行的SQL参数外，只需要额外指定执行的用户即可，便能自动按照行级权限限制来执行。
-```java
-/**
- * Execute the single sql with user permissions
- */
-public TableResult execute(String username, String singleSql) {
-    System.setProperty(EXECUTE_USERNAME, username);
-    return tableEnv.executeSql(singleSql);
-}
-```
-
-## 五、源码修改步骤
-> 注: Flink版本1.16依赖的Calcite是1.26.0版本。
-### 5.1 用[manifold-ext](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-ext) 扩展Flink ParserImpl类
-
-新建包`extensions.org.apache.flink.table.planner.delegation.ParserImpl`，注意extensions后面的包名称要等于Flink源码中ParserImpl类的`包名.类名`。
-然后新建`ParserImplExtension`类来给`ParserImpl`类扩展`parseExpression(String sqlExpression)`和`parseSql(String)`两个方法。
-
-```java
-package extensions.org.apache.flink.table.planner.delegation.ParserImpl;
-...
-
-@Extension
-public class ParserImplExtension {
-
-    private ParserImplExtension() {
-        throw new IllegalStateException("Extension class");
-    }
-
-    /**
-     * Parses a SQL expression into a {@link SqlNode}. The {@link SqlNode} is not yet validated.
-     *
-     * @param sqlExpression a SQL expression string to parse
-     * @return a parsed SQL node
-     * @throws SqlParserException if an exception is thrown when parsing the statement
-     */
-    public static SqlNode parseExpression(@This @Jailbreak ParserImpl thiz,String sqlExpression) {
-        // add @Jailbreak annotation to access private variables
-        CalciteParser parser = thiz.calciteParserSupplier.get();
-        return parser.parseExpression(sqlExpression);
-    }
-
-    /**
-     * Entry point for parsing SQL queries and return the abstract syntax tree
-     *
-     * @param statement the SQL statement to evaluate
-     * @return abstract syntax tree
-     * @throws org.apache.flink.table.api.SqlParserException when failed to parse the statement
-     */
-    public static SqlNode parseSql(@This @Jailbreak ParserImpl thiz, String statement) {
-        // add @Jailbreak annotation to access private variables
-        CalciteParser parser = thiz.calciteParserSupplier.get();
-
-        // use parseSqlList here because we need to support statement end with ';' in sql client.
-        SqlNodeList sqlNodeList = parser.parseSqlList(statement);
-        List<SqlNode> parsed = sqlNodeList.getList();
-        Preconditions.checkArgument(parsed.size() == 1, "only single statement supported");
-        return parsed.get(0);
-    }
-}
-
-```
-
-### 5.2 新增RowFilterVisitor类
-新增上文提到的`addCondition()`、`addPermission()`、`buildWhereClause()`方法，同时新增`visit(SqlCall call)`方法来遍历AST中所有的SqlSelect对象来重新生成Where子句。`visit`方法如下，其他详见源码。
-```java
-@Override
-public Void visit(SqlCall call) {
-    if (call instanceof SqlSelect) {
-        SqlSelect sqlSelect = (SqlSelect) call;
-
-        SqlNode originWhere = sqlSelect.getWhere();
-        // add row level filter condition for where clause
-        SqlNode rowFilterWhere = addCondition(sqlSelect.getFrom(), originWhere, false);
-        if (rowFilterWhere != originWhere) {
-            LOG.info("Rewritten SQL based on row-level privilege filtering for user [{}]", username);
-        }
-        sqlSelect.setWhere(rowFilterWhere);
-    }
-    return super.visit(call);
-}
-```
-
-### 5.3 封装SecurityContext类
-新建SecurityContext类，主要添加下面四个方法:
-```java
-
-// init parser
-ParserImpl parser = (ParserImpl) tableEnv.getParser();
- 
-/**
- * Add row-level filter and return new SQL
- */
-public String rewriteRowFilter(String username, String singleSql) {
-    // parsing sql and return the abstract syntax tree
-    SqlNode sqlNode = parser.parseSql(singleSql);
-
-    // add row-level filter and return a new abstract syntax tree
-    RowFilterVisitor visitor = new RowFilterVisitor(this, username);
-    sqlNode.accept(visitor);
-
-    return sqlNode.toString();
-}
+#### 4.3.3 测试小结
+无论运行SQL类型是INSERT、SELECT或者其他，只会找到查询`orders`表的子句，然后对其组装行级权限条件。
 
 
-/**
- * Execute the single sql directly, and return size rows
- */
-public List<Row> execute(String singleSql, int size) {
-    LOG.info("Execute SQL: {}", singleSql);
-    TableResult tableResult = tableEnv.executeSql(singleSql);
-    return fetchRows(tableResult.collect(), size);
-}
-
-/**
- * Execute the single sql with user rewrite policies
- */
-private List<Row> executeWithRewrite(String username, String originSql, BinaryOperator<String> rewriteFunction, int size) {
-    LOG.info("Origin SQL: {}", originSql);
-    String rewriteSql = rewriteFunction.apply(username, originSql);
-    LOG.info("Rewrite SQL: {}", rewriteSql);
-    return execute(rewriteSql, size);
-}
-
-/**
- * Execute the single sql with user data mask policies
- */
-public List<Row> executeDataMask(String username, String singleSql, int size) {
-    return executeWithRewrite(username, singleSql, this::rewriteDataMask, size);
-}
-
-```
-
-## 六、参考文献
+## 五、参考文献
 1. [数据管理DMS-敏感数据管理-行级管控](https://help.aliyun.com/document_detail/161149.html)
 2. [Apache Ranger Row-level Filter](https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.0/authorization-ranger/content/row_level_filtering_in_hive_with_ranger_policies.html)
 3. [OpenLooKeng的行级权限控制](https://www.modb.pro/db/212124)

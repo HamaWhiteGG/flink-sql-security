@@ -25,7 +25,7 @@ public class MixedRewriteTest extends AbstractBasicTest {
 
         // add data mask policies
         policyManager.addPolicy(dataMaskPolicy(USER_A, TABLE_ORDERS, "customer_name", "MASK"));
-        policyManager.addPolicy(dataMaskPolicy(USER_A, TABLE_PRODUCTS, "name","MASK_SHOW_LAST_4"));
+        policyManager.addPolicy(dataMaskPolicy(USER_A, TABLE_PRODUCTS, "name", "MASK_SHOW_LAST_4"));
     }
 
     /**
