@@ -1,16 +1,36 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.hw.security.flink.basic;
 
-import apache.flink.table.catalog.hive.HiveTestUtils;
 import com.hw.security.flink.PolicyManager;
 import com.hw.security.flink.SecurityContext;
 import com.hw.security.flink.policy.DataMaskPolicy;
 import com.hw.security.flink.policy.RowFilterPolicy;
+
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.types.Row;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import apache.flink.table.catalog.hive.HiveTestUtils;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -45,7 +65,7 @@ public abstract class AbstractBasicTest {
     @BeforeClass
     public static void setup() {
         policyManager = new PolicyManager();
-        // use hive catalog, so that flink can use hive's data masking function,  such as mask_hash, mask_first_n
+        // use hive catalog, so that flink can use hive's data masking function, such as mask_hash, mask_first_n
         hiveCatalog = HiveTestUtils.createHiveCatalog(CATALOG_NAME, DATABASE, HIVE_VERSION);
         hiveCatalog.open();
         securityContext = new SecurityContext(policyManager);
@@ -66,7 +86,8 @@ public abstract class AbstractBasicTest {
         return new RowFilterPolicy(username, CATALOG_NAME, DATABASE, tableName, condition);
     }
 
-    public static DataMaskPolicy dataMaskPolicy(String username, String tableName, String columnName, String condition) {
+    public static DataMaskPolicy dataMaskPolicy(String username, String tableName, String columnName,
+            String condition) {
         return new DataMaskPolicy(username, CATALOG_NAME, DATABASE, tableName, columnName, condition);
     }
 
@@ -129,7 +150,6 @@ public abstract class AbstractBasicTest {
         assertEquals(expectedSql, resultSql);
     }
 
-
     /**
      * Simplify some problems with indentation and spaces
      */
@@ -164,8 +184,7 @@ public abstract class AbstractBasicTest {
                 "       'server-time-zone' = 'Asia/Shanghai' ," +
                 "       'database-name' = 'demo'             ," +
                 "       'table-name'    = '" + TABLE_ORDERS + "' " +
-                ")"
-        );
+                ")");
     }
 
     /**
@@ -187,8 +206,7 @@ public abstract class AbstractBasicTest {
                 "       'server-time-zone' = 'Asia/Shanghai' ," +
                 "       'database-name' = 'demo'             ," +
                 "       'table-name'    = '" + TABLE_PRODUCTS + "' " +
-                ")"
-        );
+                ")");
     }
 
     /**
@@ -212,8 +230,7 @@ public abstract class AbstractBasicTest {
                 "       'server-time-zone' = 'Asia/Shanghai' ," +
                 "       'database-name' = 'demo'             ," +
                 "       'table-name'    = '" + TABLE_SHIPMENTS + "' " +
-                ")"
-        );
+                ")");
     }
 
     /**
@@ -232,7 +249,6 @@ public abstract class AbstractBasicTest {
                 "       region              STRING                        " +
                 ") WITH ( " +
                 "       'connector' = 'print'            " +
-                ")"
-        );
+                ")");
     }
 }

@@ -1,7 +1,26 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.hw.security.flink.rewrite;
 
 import com.hw.security.flink.basic.AbstractBasicTest;
 import com.hw.security.flink.policy.RowFilterPolicy;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -281,7 +300,6 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
         rewriteRowFilter(USER_A, sql, expected);
     }
 
-
     /**
      * The products and orders two tables are left joined, and the left table comes from a sub-query
      */
@@ -344,7 +362,6 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
         rewriteRowFilter(USER_A, sql, expected);
     }
 
-
     /**
      * The two tables of orders and products are joined, and both have row-level filter conditions
      */
@@ -390,7 +407,6 @@ public class RewriteRowFilterTest extends AbstractBasicTest {
         // remove policy
         policyManager.removePolicy(policy);
     }
-
 
     /**
      * The order table order, the product table products, and the logistics information table

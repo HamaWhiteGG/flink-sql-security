@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.hw.security.flink.visitor;
 
 import com.google.common.collect.ImmutableList;
@@ -7,6 +25,7 @@ import com.hw.security.flink.exception.CustomException;
 import com.hw.security.flink.model.ColumnEntity;
 import com.hw.security.flink.model.TableEntity;
 import com.hw.security.flink.visitor.basic.AbstractBasicVisitor;
+
 import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -68,11 +87,11 @@ public class DataMaskVisitor extends AbstractBasicVisitor {
         List<String> columnTransformerList = new ArrayList<>();
         for (ColumnEntity column : table.getColumnList()) {
             String columnTransformer = column.getColumnName();
-            Optional<String> condition = policyManager.getDataMaskCondition(username
-                    , tableIdentifier.getCatalogName()
-                    , tableIdentifier.getDatabaseName()
-                    , tableIdentifier.getObjectName()
-                    , column.getColumnName());
+            Optional<String> condition = policyManager.getDataMaskCondition(username,
+                    tableIdentifier.getCatalogName(),
+                    tableIdentifier.getDatabaseName(),
+                    tableIdentifier.getObjectName(),
+                    column.getColumnName());
             if (condition.isPresent()) {
                 doColumnMasking = true;
                 DataMaskType maskType = policyManager.getDataMaskType(condition.get());
@@ -88,15 +107,8 @@ public class DataMaskVisitor extends AbstractBasicVisitor {
             SqlNode[] operands = new SqlNode[2];
             operands[0] = sqlSelect;
             // add table alias
-            operands[1] = new SqlIdentifier(ImmutableList.of(tableAlias)
-                    , null
-                    , new SqlParserPos(0, 0)
-                    , null
-            );
-            SqlBasicCall replaced = new SqlBasicCall(new SqlAsOperator()
-                    , operands
-                    , new SqlParserPos(0, 0)
-            );
+            operands[1] = new SqlIdentifier(ImmutableList.of(tableAlias), null, new SqlParserPos(0, 0), null);
+            SqlBasicCall replaced = new SqlBasicCall(new SqlAsOperator(), operands, new SqlParserPos(0, 0));
             rewrittenTree(parent, parentType, replaced);
         }
     }
@@ -116,7 +128,8 @@ public class DataMaskVisitor extends AbstractBasicVisitor {
             String colName = column.getColumnName();
             if (!transformer.equals(colName)) {
                 // CAST(transformer AS col_type) AS col_name
-                sb.append(String.format("CAST( %s AS %s) AS %s", transformer, column.getColumnType(), column.getColumnName()));
+                sb.append(String.format("CAST( %s AS %s) AS %s", transformer, column.getColumnType(),
+                        column.getColumnName()));
             } else {
                 sb.append(column.getColumnName());
             }
@@ -170,6 +183,3 @@ public class DataMaskVisitor extends AbstractBasicVisitor {
         }
     }
 }
-
-
-
