@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.hw.security.flink;
 
 import com.hw.security.flink.exception.CustomException;
@@ -5,7 +23,7 @@ import com.hw.security.flink.model.ColumnEntity;
 import com.hw.security.flink.model.TableEntity;
 import com.hw.security.flink.visitor.DataMaskVisitor;
 import com.hw.security.flink.visitor.RowFilterVisitor;
-import javassist.*;
+
 import org.apache.calcite.sql.SqlNode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
@@ -30,6 +48,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.function.BinaryOperator;
 import java.util.stream.Collectors;
+import javassist.*;
 
 /**
  * @description: SecurityContext
@@ -47,8 +66,8 @@ public class SecurityContext {
 
     static {
         /*
-          Use javassist to modify the bytecode to add the variable custom to org.apache.calcite.sql.SqlSelect,
-          which is used to mark whether SqlSelect is custom generated
+         * Use javassist to modify the bytecode to add the variable custom to org.apache.calcite.sql.SqlSelect, which is
+         * used to mark whether SqlSelect is custom generated
          */
         try {
             ClassPool classPool = ClassPool.getDefault();
@@ -69,7 +88,6 @@ public class SecurityContext {
             throw new CustomException("Dynamic add field method exception.", e);
         }
     }
-
 
     public SecurityContext(PolicyManager policyManager) {
         this.policyManager = policyManager;
@@ -185,7 +203,8 @@ public class SecurityContext {
     /**
      * Execute the single sql with user rewrite policies
      */
-    private List<Row> executeWithRewrite(String username, String originSql, BinaryOperator<String> rewriteFunction, int size) {
+    private List<Row> executeWithRewrite(String username, String originSql, BinaryOperator<String> rewriteFunction,
+            int size) {
         LOG.info("Origin SQL: {}", originSql);
         String rewriteSql = rewriteFunction.apply(username, originSql);
         LOG.info("Rewrite SQL: {}", rewriteSql);
@@ -227,9 +246,8 @@ public class SecurityContext {
     }
 
     private Catalog getCatalog(String catalogName) {
-        return tableEnv.getCatalog(catalogName).orElseThrow(() ->
-                new ValidationException(String.format("Catalog %s does not exist", catalogName))
-        );
+        return tableEnv.getCatalog(catalogName)
+                .orElseThrow(() -> new ValidationException(String.format("Catalog %s does not exist", catalogName)));
     }
 
     public TableEntity getTable(ObjectIdentifier identifier) {
