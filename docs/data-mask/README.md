@@ -136,7 +136,13 @@ $ mvn test
 #### 4.1.1 输入SQL
 用户A执行下述SQL: 
 ```sql
-SELECT order_id, customer_name, product_id, region FROM orders
+SELECT 
+     order_id, 
+     customer_name,
+     product_id, 
+     region 
+ FROM 
+     orders
 ```
 #### 4.1.2 根据脱敏条件重新生成SQL
 1. 输入SQL是一个简单SELECT语句，经过语法分析和语法校验后FROM类型是`SqlBasicCall`，SQL中的表名`orders`会被替换为完整的`hive.default.orders`，别名是`orders`。
