@@ -86,7 +86,13 @@ $ mvn test
 
 ### 4.1 输入SQL
 ```sql
-SELECT order_id, customer_name, product_id, region FROM orders
+SELECT
+    order_id, 
+    customer_name, 
+    product_id, 
+    region 
+FROM 
+    orders
 ```
 
 ### 4.2 用户A的最终执行SQL
