@@ -23,6 +23,11 @@
 1. [FlinkSQL的行级权限解决方案及源码](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/row-filter/README.md)
 2. [FlinkSQL的数据脱敏解决方案及源码](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/data-mask/README.md)
 
+欢迎加入微信群一起学习。
+
+<img src="https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/wechat-group.png" alt="wechat-group.png" style="width:40%;">
+
+
 
 ## 一、基础知识
 ### 1.1 数据脱敏
