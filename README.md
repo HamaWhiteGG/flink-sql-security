@@ -2,6 +2,8 @@
 
 支持面向用户级别的数据脱敏和行级数据访问控制，即特定用户只能访问到脱敏后的数据或授权过的行。此方案是实时领域Flink的解决方案，类似于离线数仓Hive Ranger中的Row-level Filter和Column Masking方案。
 
+> If you are interested, you can add me on WeChat: HamaWhite, or send email to baisongxx@gmail.com
+
 <br/>
 
 | 序号 | 作者 | 版本 | 时间 | 备注 |
@@ -10,22 +12,13 @@
 | 2 | HamaWhite | 1.0.1 | 2023-04-11 | 1. 通过 [manifold-ext](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-ext) 扩展Flink ParserImpl类的方法</br> 2. 自定义calcite visitor来增加行级权限，不再改SqlSelect源码 |
 | 3 | HamaWhite | 2.0.0 | 2023-04-23 | 1. 支持数据脱敏 |
 | 4 | HamaWhite | 2.0.1 | 2023-05-07 | 1. 语法校验后再增加权限约束 |
-
-
 <br/>
-源码地址: https://github.com/HamaWhiteGG/flink-sql-security 
 
 > 注: 如果用IntelliJ IDEA打开源码，请提前安装 **Manifold** 插件。
-
-<br/>
 
 **如果希望进一步阅读技术细节，请查看系列文章**:
 1. [FlinkSQL的行级权限解决方案及源码](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/row-filter/README.md)
 2. [FlinkSQL的数据脱敏解决方案及源码](https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/data-mask/README.md)
-
-欢迎加入微信群一起学习。
-
-<img src="https://github.com/HamaWhiteGG/flink-sql-security/blob/dev/docs/images/wechat-group.png" alt="wechat-group.png" style="width:40%;">
 
 
 
