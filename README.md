@@ -142,3 +142,9 @@ WHERE
 ## 五、下一步计划
 1. FlinkSQL Access策略，即库、表、字段的权限控制。
 2. ranger-flink-plugin。
+
+
+## 六、赞赏
+如果项目对你有帮助，可以选择请我喝杯咖啡（下图是微信赞赏码）。
+<img src="https://github.com/HamaWhiteGG/flink-sql-security/blob/main/docs/images/Appreciation%20code.png" alt="Appreciation code" style="width:40%;">
+
